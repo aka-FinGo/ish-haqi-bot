@@ -1,7 +1,7 @@
 // =========================================================
 // ⚠️ DIQQAT! GOOGLE SCRIPT SSILKASINI SHU YERGA QO'YASIZ!
 // =========================================================
-const API_URL = "URL_SHU_YERGA_QOYILADI"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbyELe4JB8a4NpmaZr2wlonnOwu9gDIkumw3JEu2VuMyl--pwImUrcvkG4e5H1GnONk9Pw/exec"; 
 
 const tg = window.Telegram.WebApp;
 tg.expand();
