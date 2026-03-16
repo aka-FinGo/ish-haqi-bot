@@ -750,3 +750,119 @@ textarea { resize: vertical; min-height: 80px; }
 .text-center { text-align: center; }
 .text-green  { color: var(--green-dark); }
 .divider     { height: 1px; background: var(--border); margin: 16px 0; }
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+
+/* Role badge */
+.dash-role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 18px;
+    letter-spacing: 0.2px;
+}
+.dash-role-badge.user    { background:#ECFDF5; color:#065F46; }
+.dash-role-badge.admin   { background:#EFF6FF; color:#1D4ED8; }
+.dash-role-badge.boss    { background:#FFF7ED; color:#92400E; }
+
+/* Section title */
+.dash-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin: 20px 0 12px;
+}
+
+/* Stat cards grid */
+.dash-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.dash-stat-card {
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--border);
+    transition: transform .15s;
+}
+.dash-stat-card:active { transform: scale(0.98); }
+
+.dash-stat-icon {
+    font-size: 22px;
+    line-height: 1;
+    margin-top: 2px;
+}
+
+.dash-stat-body { flex: 1; min-width: 0; }
+
+.dash-stat-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.dash-stat-value {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--navy);
+    letter-spacing: -0.4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dash-stat-sub {
+    font-size: 11px;
+    color: var(--text-light);
+    margin-top: 3px;
+    font-weight: 500;
+}
+
+/* Chart cards */
+.dash-chart-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
+    margin-bottom: 14px;
+}
+
+.dash-chart-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 16px;
+}
+
+/* Empty state */
+.dash-empty {
+    text-align: center;
+    padding: 30px;
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Bottom nav 4-item layout */
+.bottom-nav.four-items .nav-item { flex: none; width: 70px; }
+.bottom-nav.four-items { justify-content: space-between; padding-left: 10px; padding-right: 10px; }
