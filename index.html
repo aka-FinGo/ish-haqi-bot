@@ -52,11 +52,20 @@
             </div>
 
             <div id="adminDataArea">
-                <div class="card gradient-card">
-                    <div>Umumiy Byudjet (Barchasi So'mda)</div>
-                    <div id="totalCompanyUzs" class="big-text">0 UZS</div>
-                    <button class="btn-export" onclick="exportToCSV()">📥 Hisobotni yuklab olish (CSV)</button>
-                </div>
+    <div class="card" style="background: linear-gradient(135deg, #1e3c72, #2a5298); color: white; border-radius: 16px; padding: 20px; margin-bottom: 20px;">
+        <div style="font-size: 13px; opacity: 0.8;">Kompaniya bo'yicha Jami Budjet (So'mda)</div>
+        <div id="totalCompanyUzs" style="font-size: 26px; font-weight: 800; margin-top: 8px;">0 UZS</div>
+        <div style="display: flex; justify-content: space-between; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px;">
+            <div style="font-size: 12px;">📊 Filtrlangan: <span id="filteredCount">0</span> ta amal</div>
+            <button onclick="exportToExcel()" style="background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 4px 10px; border-radius: 8px; font-size: 11px; cursor: pointer;">📥 Excel</button>
+        </div>
+    </div>
+    
+    <div class="filter-box">
+        </div>
+    
+    <div id="adminList"></div>
+</div>
                 
                 <div class="filter-box" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
                     <input type="text" id="searchInput" placeholder="🔎 Ism, izoh yoki sana bo'yicha qidiring..." onkeyup="applyFilters()">
