@@ -1,0 +1,50 @@
+body { font-family: -apple-system, sans-serif; margin: 0; padding: 0; background: #f4f5f7; color: #333; }
+.container { max-width: 500px; margin: 0 auto; padding: 15px; padding-bottom: 90px; }
+.hidden { display: none !important; }
+.text-center { text-align: center; }
+.text-green { color: #2e8b57; }
+.big-text { font-size: 24px; font-weight: bold; margin-top: 5px; }
+
+.tab-content { display: none; animation: fadeIn 0.2s ease-in-out; }
+.tab-content.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* Bottom Nav */
+.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; display: flex; justify-content: space-around; align-items: center; padding: 10px 0; box-shadow: 0 -4px 15px rgba(0,0,0,0.05); border-radius: 20px 20px 0 0; z-index: 1000; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+.nav-item { flex: 1; text-align: center; color: #888; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
+.nav-item.active { color: #2e8b57; }
+.nav-fab-container { flex: 1; display: flex; justify-content: center; }
+.nav-fab { width: 56px; height: 56px; background: linear-gradient(135deg, #2e8b57, #206a41); border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #fff; font-size: 28px; margin-top: -35px; box-shadow: 0 6px 15px rgba(46,139,87,0.4); border: 4px solid #f4f5f7; }
+
+/* Cards & Forms */
+.card { background: #fff; border-radius: 16px; padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); margin-bottom: 15px; }
+.gradient-card { background: linear-gradient(135deg, #1e3c72, #2a5298); color: white; border-radius: 16px; padding: 15px; margin-bottom: 15px; }
+.summary-cards { display: flex; gap: 10px; margin-bottom: 20px; }
+.s-card { flex: 1; padding: 15px; border-radius: 12px; text-align: center; color: #fff; font-weight: bold; }
+.s-card.uzs { background: linear-gradient(135deg, #43a047, #2e7d32); }
+.s-card.usd { background: linear-gradient(135deg, #fb8c00, #e65100); }
+
+input, select, textarea { width: 100%; box-sizing: border-box; padding: 12px; margin-top: 8px; border: 1px solid #e0e0e0; border-radius: 10px; background: #fafafa; font-size: 15px; }
+button.btn-main { width: 100%; padding: 14px; margin-top: 15px; background: #2e8b57; color: white; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; }
+.btn-export { width: 100%; padding: 10px; margin-top: 10px; background: rgba(255,255,255,0.2); color: white; border: 1px solid white; border-radius: 8px; cursor: pointer; }
+.bg-purple { background: #4a148c !important; }
+.bg-red { background: #d32f2f !important; }
+
+/* Lists & Items */
+.history-item { background: #fff; border-radius: 12px; padding: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 4px solid #2e8b57; }
+.action-btns { display: flex; gap: 5px; margin-top: 8px; }
+.action-btns button { flex: 1; padding: 6px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; color: white; font-weight: bold; }
+.edit-btn { background: #fbc02d; }
+.del-btn { background: #e53935; }
+
+/* Sub Tabs & Pagination */
+.sub-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+.sub-btn { flex: 1; padding: 10px; text-align: center; font-weight: bold; background: #e0e0e0; border-radius: 8px; cursor: pointer; }
+.sub-btn.active { background: #2a5298; color: #fff; }
+.pagination { display: flex; justify-content: center; gap: 10px; margin-top: 15px; }
+.page-btn { padding: 6px 12px; background: #fff; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; }
+.page-btn.active { background: #2e8b57; color: white; border-color: #2e8b57; }
+
+/* Modal */
+.modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+.modal-content { background: white; padding: 20px; border-radius: 16px; width: 90%; max-width: 400px; }
