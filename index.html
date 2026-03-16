@@ -12,10 +12,21 @@
     <div class="container">
         <div id="reportTab" class="tab-content active">
             <h2 id="greeting">Salom, Xodim!</h2>
-            <div class="summary-cards">
-                <div class="s-card uzs"><div>Jami So'm</div><div id="myUzs">0</div></div>
-                <div class="s-card usd"><div>Jami Dollar</div><div id="myUsd">$0</div></div>
-            </div>
+            <div class="summary-cards" style="flex-wrap: wrap;">
+    <div class="s-card uzs">
+        <div style="font-size:12px; opacity:0.9;">Faqat So'm (UZS)</div>
+        <div id="myUzs" style="font-size:18px; margin-top:5px;">0</div>
+    </div>
+    <div class="s-card usd">
+        <div style="font-size:12px; opacity:0.9;">Faqat Dollar (USD)</div>
+        <div id="myUsd" style="font-size:18px; margin-top:5px;">$0</div>
+    </div>
+    
+    <div class="s-card budget" style="background: linear-gradient(135deg, #1e3c72, #2a5298); width: 100%; margin-top: 10px; flex: none;">
+        <div style="font-size:12px; opacity:0.9;">Jami Budjet (Barchasi So'mda)</div>
+        <div id="myTotalBudget" style="font-size:22px; margin-top:5px; font-weight: 800;">0 UZS</div>
+    </div>
+</div>
             <h4>Oxirgi amallarim</h4>
             <div id="myHistory"></div>
         </div>
