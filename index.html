@@ -3,239 +3,265 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buxgalteriya va Hisobot</title>
+    <title>ERP Tizim</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 15px; background: var(--tg-theme-bg-color, #f4f4f5); color: var(--tg-theme-text-color, #000000); }
-        .container { max-width: 450px; margin: 0 auto; background: var(--tg-theme-bg-color, #ffffff); border-radius: 12px; padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 15px; background: var(--tg-theme-bg-color, #f4f4f5); color: var(--tg-theme-text-color, #000); }
+        .container { max-width: 500px; margin: 0 auto; background: var(--tg-theme-bg-color, #fff); border-radius: 12px; padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
         
-        /* Tab Menyular */
-        .tabs { display: flex; margin-bottom: 20px; background: var(--tg-theme-secondary-bg-color, #e0e0e0); border-radius: 8px; overflow: hidden; }
-        .tab-btn { flex: 1; padding: 12px; text-align: center; font-weight: bold; cursor: pointer; color: var(--tg-theme-text-color, #333); transition: 0.3s; }
-        .tab-btn.active { background: var(--tg-theme-button-color, #2481cc); color: var(--tg-theme-button-text-color, #fff); }
+        .tabs { display: flex; margin-bottom: 20px; background: #e0e0e0; border-radius: 8px; overflow: hidden; }
+        .tab-btn { flex: 1; padding: 10px; text-align: center; font-weight: bold; cursor: pointer; color: #333; font-size: 14px; }
+        .tab-btn.active { background: #2481cc; color: #fff; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-
-        h2, h3 { text-align: center; margin-top: 0; }
-        label { display: block; margin-top: 12px; font-size: 14px; font-weight: bold; color: var(--tg-theme-hint-color, #555); }
-        input, select, textarea { width: 100%; box-sizing: border-box; padding: 12px; margin-top: 6px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; background: var(--tg-theme-secondary-bg-color, #fafafa); color: var(--tg-theme-text-color, #000); }
-        button { width: 100%; padding: 14px; margin-top: 20px; background: var(--tg-theme-button-color, #2e8b57); color: var(--tg-theme-button-text-color, #ffffff); border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        button:disabled { opacity: 0.6; }
         
-        /* Hisobot kartochkalari */
+        #adminTabBtn { display: none; background: #ff9800; color: white; }
+        #adminTabBtn.active { background: #e65100; }
+
+        .sub-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+        .sub-btn { flex: 1; padding: 8px; text-align: center; font-weight: bold; background: #eee; border-radius: 6px; cursor: pointer; color:#333; font-size: 13px;}
+        .sub-btn.active { background: #4a148c; color: #fff; }
+
+        input, select, textarea { width: 100%; box-sizing: border-box; padding: 12px; margin-top: 6px; border: 1px solid #ccc; border-radius: 8px; background: #fafafa; font-size: 15px; margin-bottom: 5px;}
+        button.btn-main { width: 100%; padding: 14px; margin-top: 10px; background: #2e8b57; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        
         .summary-cards { display: flex; gap: 10px; margin-bottom: 20px; }
         .card { flex: 1; padding: 15px; border-radius: 8px; text-align: center; color: #fff; font-weight: bold; }
         .card.uzs { background: linear-gradient(135deg, #43a047, #2e7d32); }
         .card.usd { background: linear-gradient(135deg, #fb8c00, #e65100); }
-        .card-title { font-size: 12px; opacity: 0.9; margin-bottom: 5px; }
-        .card-value { font-size: 18px; }
-
-        /* Tarix ro'yxati */
-        .history-item { padding: 12px; border-bottom: 1px solid var(--tg-theme-secondary-bg-color, #eee); display: flex; justify-content: space-between; align-items: center; }
-        .history-item:last-child { border-bottom: none; }
-        .h-date { font-size: 12px; color: var(--tg-theme-hint-color, #888); }
-        .h-comment { font-size: 14px; font-weight: 500; margin-top: 4px; }
-        .h-amount { font-weight: bold; font-size: 15px; }
-        .h-amount.uzs { color: #2e7d32; }
-        .h-amount.usd { color: #e65100; }
+        .card.admin { background: linear-gradient(135deg, #8e24aa, #4a148c); width: 100%; margin-bottom: 10px; box-sizing: border-box;}
         
-        #status { margin-top: 15px; text-align: center; font-weight: bold; }
-        .loading { text-align: center; color: var(--tg-theme-hint-color, #888); font-style: italic; padding: 20px; }
+        .history-item, .admin-item { background: #fff; border-bottom: 1px solid #eee; padding: 12px 0; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+        .admin-item { background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+        .del-btn { background: #e53935; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-top: 8px;}
+        
+        .role-badge { background: #4a148c; color: #fff; padding: 3px 8px; border-radius: 12px; font-size: 11px; }
+        .role-badge.boss { background: #d84315; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="tabs">
-            <div class="tab-btn active" onclick="switchTab('addTab')">➕ Qo'shish</div>
-            <div class="tab-btn" onclick="switchTab('reportTab')">📊 Hisobotim</div>
+            <div class="tab-btn active" id="btn-add" onclick="switchTab('addTab', 'btn-add')">➕ Qo'shish</div>
+            <div class="tab-btn" id="btn-report" onclick="switchTab('reportTab', 'btn-report')">📊 Hisobotim</div>
+            <div class="tab-btn" id="adminTabBtn" onclick="switchTab('adminTab', 'adminTabBtn')">👑 ADMIN</div>
         </div>
 
         <div id="addTab" class="tab-content active">
-            <h2 id="greeting">💸 Buxgalteriya</h2>
+            <h3 id="greeting">Buxgalteriya</h3>
             <form id="financeForm">
-                <label>Summa:</label>
-                <input type="number" id="amount" required placeholder="Masalan: 500000">
-                
-                <label>Valyuta:</label>
-                <select id="currency" onchange="toggleRate()">
-                    <option value="UZS">So'm (UZS)</option>
-                    <option value="USD">Dollar (USD)</option>
-                </select>
-                
-                <div id="rateDiv" style="display: none;">
-                    <label style="color: #e65100;">Kurs (1$ uchun):</label>
-                    <input type="number" id="rate" placeholder="12600">
-                </div>
-                
-                <label>Izoh:</label>
-                <textarea id="comment" rows="2" placeholder="Nima maqsadda?"></textarea>
-                
-                <button type="submit" id="submitBtn">Yuborish</button>
+                <input type="number" id="amount" required placeholder="Summa (Masalan: 500000)">
+                <select id="currency" onchange="toggleRate()"><option value="UZS">So'm (UZS)</option><option value="USD">Dollar (USD)</option></select>
+                <div id="rateDiv" style="display: none;"><input type="number" id="rate" placeholder="Kurs (Masalan: 12600)"></div>
+                <textarea id="comment" rows="2" placeholder="Izoh"></textarea>
+                <button type="submit" class="btn-main" id="submitBtn">Saqlash</button>
             </form>
-            <div id="status"></div>
+            <div id="status" style="text-align:center; margin-top:10px; font-weight:bold;"></div>
         </div>
 
         <div id="reportTab" class="tab-content">
-            <h3>Jami Xarajatlarim</h3>
-            
             <div class="summary-cards">
-                <div class="card uzs">
-                    <div class="card-title">Jami So'm (UZS)</div>
-                    <div class="card-value" id="totalUzsValue">0</div>
-                </div>
-                <div class="card usd">
-                    <div class="card-title">Jami Dollar (USD)</div>
-                    <div class="card-value" id="totalUsdValue">$0</div>
-                </div>
+                <div class="card uzs"><div>Mening So'm</div><div id="myUzs">0</div></div>
+                <div class="card usd"><div>Mening Dollar</div><div id="myUsd">$0</div></div>
+            </div>
+            <h4>Oxirgi amallarim</h4>
+            <div id="myHistory"></div>
+        </div>
+
+        <div id="adminTab" class="tab-content">
+            
+            <div class="sub-tabs" id="bossNav" style="display: none;">
+                <div class="sub-btn active" id="btn-xarajat" onclick="switchAdminSub('adminDataArea', 'btn-xarajat')">Xarajatlar</div>
+                <div class="sub-btn" id="btn-rollar" onclick="switchAdminSub('adminRolesArea', 'btn-rollar'); loadAdmins();">Rollar</div>
             </div>
 
-            <h3>Oxirgi amallar</h3>
-            <div id="historyList">
-                <div class="loading">Ma'lumotlar yuklanmoqda...</div>
+            <div id="adminDataArea">
+                <div class="card admin">
+                    <div style="font-size: 12px; opacity: 0.8;">Kompaniya bo'yicha Umumiy</div>
+                    <div id="totalCompanyUzs" style="font-size: 20px; margin-top: 5px;">0 UZS</div>
+                    <div id="totalCompanyUsd" style="font-size: 20px; color: #ffd54f;">$0</div>
+                </div>
+                <input type="text" id="searchInput" placeholder="🔎 Ism yoki izohni qidiring..." onkeyup="filterAdminList()">
+                <div id="adminList"></div>
             </div>
+
+            <div id="adminRolesArea" style="display: none;">
+                <h4 style="margin-top:0;">Yangi tayinlash</h4>
+                <input type="text" id="newAdminId" placeholder="Telegram ID (Majburiy)">
+                <input type="text" id="newAdminName" placeholder="Xodimning ismi">
+                <select id="newAdminRole">
+                    <option value="Admin">Oddiy Admin (Faqat ko'radi va o'chiradi)</option>
+                    <option value="Boss">Boshliq (Adminlarni boshqaradi)</option>
+                </select>
+                <button class="btn-main" onclick="addAdmin()" style="margin-top:5px; background:#4a148c;">Tizimga Qo'shish</button>
+                <div id="adminStatus" style="text-align:center; font-weight:bold; margin-top:5px;"></div>
+                
+                <h4>Tizimdagi Adminlar</h4>
+                <div id="rolesList"></div>
+            </div>
+
         </div>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
-        
-        // ⚠️ DIQQAT: SHU YERGA GOOGLE SCRIPT SSILKASINI QO'YING!
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyELe4JB8a4NpmaZr2wlonnOwu9gDIkumw3JEu2VuMyl--pwImUrcvkG4e5H1GnONk9Pw/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycbyELe4JB8a4NpmaZr2wlonnOwu9gDIkumw3JEu2VuMyl--pwImUrcvkG4e5H1GnONk9Pw/exec"; // ⚠️ G-SCRIPT SSILKA
         
         const user = tg.initDataUnsafe?.user;
-        const employeeName = user ? `${user.first_name} ${user.last_name || ''}`.trim() : "Noma'lum Xodim";
+        const employeeName = user ? `${user.first_name} ${user.last_name || ''}`.trim() : "Test User";
         const telegramId = user ? String(user.id) : "Yo'q";
         
         document.getElementById('greeting').innerText = `👋 Salom, ${user ? user.first_name : 'Xodim'}!`;
 
-        // Oynalarni (Tab) almashtirish funksiyasi
-        function switchTab(tabId) {
+        let globalAdminData = []; 
+        let isSuperBoss = false;
+
+        // INIT
+        window.onload = async () => {
+            try {
+                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "init", telegramId: telegramId }) });
+                const data = await res.json();
+                if (data.success) {
+                    renderMyHistory(data.data);
+                    if (data.isAdmin) document.getElementById('adminTabBtn').style.display = 'block';
+                    if (data.isBoss) {
+                        isSuperBoss = true;
+                        document.getElementById('bossNav').style.display = 'flex'; // Rollar menyusini ochish
+                    }
+                }
+            } catch (e) { console.error(e); }
+        };
+
+        // NAVIGATSIYA
+        function switchTab(tabId, btnId) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            
             document.getElementById(tabId).classList.add('active');
-            event.currentTarget.classList.add('active');
-
-            // Agar Hisobot ochilsa, bazadan o'qib kelishni boshlaymiz
-            if (tabId === 'reportTab') {
-                loadReport();
-            }
+            document.getElementById(btnId).classList.add('active');
+            if (tabId === 'adminTab') loadAdminData();
         }
 
-        // Valyuta o'zgarganda kurs oynasini chiqarish
-        function toggleRate() {
-            const curr = document.getElementById('currency').value;
-            document.getElementById('rateDiv').style.display = curr === 'USD' ? 'block' : 'none';
+        function switchAdminSub(areaId, btnId) {
+            document.getElementById('adminDataArea').style.display = 'none';
+            document.getElementById('adminRolesArea').style.display = 'none';
+            document.querySelectorAll('.sub-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(areaId).style.display = 'block';
+            document.getElementById(btnId).classList.add('active');
         }
 
-        // Ma'lumotlarni yuborish (POST)
+        function toggleRate() { document.getElementById('rateDiv').style.display = document.getElementById('currency').value === 'USD' ? 'block' : 'none'; }
+
+        // MENING HISOBOTIM
+        function renderMyHistory(records) {
+            let tUZS = 0, tUSD = 0, html = '';
+            records.reverse().forEach(r => {
+                tUZS += Number(r.amountUZS) || 0; tUSD += Number(r.amountUSD) || 0;
+                html += `<div class="history-item"><div><div style="font-size:12px; color:#888;">📅 ${r.date}</div><div>📝 ${r.comment}</div></div><div style="font-weight:bold;">${r.amountUZS > 0 ? `<span style="color:#2e7d32;">${r.amountUZS} UZS</span><br>` : ''}${r.amountUSD > 0 ? `<span style="color:#e65100;">$${r.amountUSD}</span>` : ''}</div></div>`;
+            });
+            document.getElementById('myUzs').innerText = tUZS.toLocaleString(); document.getElementById('myUsd').innerText = '$' + tUSD.toLocaleString();
+            document.getElementById('myHistory').innerHTML = html || "<p style='text-align:center;'>Ma'lumot yo'q</p>";
+        }
+
+        // QO'SHISH
         document.getElementById('financeForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const btn = document.getElementById('submitBtn');
-            const status = document.getElementById('status');
-            
-            let amount = parseFloat(document.getElementById('amount').value);
-            let currency = document.getElementById('currency').value;
-            let rate = parseFloat(document.getElementById('rate').value) || 0;
-            let comment = document.getElementById('comment').value || "Izoh yo'q";
+            const btn = document.getElementById('submitBtn'); const status = document.getElementById('status');
+            let amount = parseFloat(document.getElementById('amount').value); let currency = document.getElementById('currency').value;
+            let rate = parseFloat(document.getElementById('rate').value) || 0; let comment = document.getElementById('comment').value || "Izoh yo'q";
+            let amountUZS = currency === 'USD' ? amount * rate : amount; let amountUSD = currency === 'USD' ? amount : 0;
+            if (currency === 'USD' && rate < 5000) { alert("Kurs xato!"); return; }
+            const date = new Intl.DateTimeFormat('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date());
 
-            let amountUZS = amount;
-            let amountUSD = 0;
-
-            if (currency === 'USD') {
-                if (rate < 5000) { alert("Iltimos, haqiqiy kursni kiriting!"); return; }
-                amountUSD = amount;
-                amountUZS = amount * rate;
-            } else { rate = 0; }
-
-            const date = new Intl.DateTimeFormat('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Tashkent' }).format(new Date());
-
-            btn.disabled = true;
-            btn.innerText = "Yuborilmoqda...";
-            
-            const payload = { employeeName, telegramId, amountUZS, amountUSD, rate, comment, date };
-
+            btn.disabled = true; btn.innerText = "Yuborilmoqda...";
             try {
-                await fetch(GOOGLE_SCRIPT_URL, {
-                    method: "POST",
-                    body: JSON.stringify(payload)
-                });
-                
-                status.style.color = "green";
-                status.innerText = "✅ Muvaffaqiyatli saqlandi!";
-                
-                // Formani tozalash
-                document.getElementById('amount').value = '';
-                document.getElementById('comment').value = '';
-                
-                setTimeout(() => {
-                    status.innerText = "";
-                    btn.disabled = false;
-                    btn.innerText = "Yuborish";
-                    // Saqlangach, avtomat Hisobot oynasiga o'tkazib yuboramiz
-                    switchTab('reportTab');
-                    document.querySelectorAll('.tab-btn')[1].classList.add('active');
-                    document.querySelectorAll('.tab-btn')[0].classList.remove('active');
-                }, 1500);
-            } catch (err) {
-                status.style.color = "red";
-                status.innerText = "❌ Xatolik yuz berdi.";
-                btn.disabled = false;
-                btn.innerText = "Yuborish";
-            }
+                await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "add", employeeName, telegramId, amountUZS, amountUSD, rate, comment, date }) });
+                status.style.color = "green"; status.innerText = "✅ Saqlandi!"; setTimeout(() => { window.location.reload(); }, 1000);
+            } catch (err) { status.style.color = "red"; status.innerText = "❌ Xato"; btn.disabled = false; btn.innerText = "Saqlash"; }
         });
 
-        // Hisobotlarni o'qish (GET) va ekranga chiqarish
-        async function loadReport() {
-            const historyList = document.getElementById('historyList');
-            historyList.innerHTML = '<div class="loading">Ma\'lumotlar yuklanmoqda... ⏳</div>';
-            
+        // ================= ADMIN: XARAJATLAR =================
+        async function loadAdminData() {
+            document.getElementById('adminList').innerHTML = "<p style='text-align:center;'>Yuklanmoqda... ⏳</p>";
             try {
-                // Telegram ID ni yuborib, faqat shu xodimning xarajatlarini olib kelamiz
-                const response = await fetch(`${GOOGLE_SCRIPT_URL}?tgId=${telegramId}`);
-                const result = await response.json();
-                
-                if (result.success && result.data.length > 0) {
-                    let totalUZS = 0;
-                    let totalUSD = 0;
-                    let htmlList = '';
+                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "admin_get_all", telegramId: telegramId }) });
+                const data = await res.json();
+                if (data.success) { globalAdminData = data.data; drawAdminUI(globalAdminData); }
+            } catch(e) {}
+        }
 
-                    // Oxirgi kiritilganlar tepada turishi uchun ro'yxatni teskari aylantiramiz
-                    const reversedData = result.data.reverse();
+        function filterAdminList() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = globalAdminData.filter(item => (item.name && item.name.toLowerCase().includes(query)) || (item.comment && item.comment.toLowerCase().includes(query)));
+            drawAdminUI(filtered);
+        }
 
-                    reversedData.forEach(item => {
-                        // Jami hisob-kitob
-                        totalUZS += Number(item.amountUZS) || 0;
-                        totalUSD += Number(item.amountUSD) || 0;
+        function drawAdminUI(records) {
+            let tUZS = 0, tUSD = 0, html = '';
+            records.forEach(r => {
+                tUZS += Number(r.amountUZS) || 0; tUSD += Number(r.amountUSD) || 0;
+                html += `<div class="admin-item"><div style="display:flex; justify-content:space-between;"><strong>👤 ${r.name}</strong><span style="color:#888; font-size:12px;">📅 ${r.date}</span></div><div style="margin: 8px 0; color:#333;">📝 ${r.comment}</div><div style="display:flex; justify-content:space-between; align-items:end;"><div>${r.amountUZS > 0 ? `<span style="color:#2e7d32; font-weight:bold;">${r.amountUZS} UZS</span><br>` : ''}${r.amountUSD > 0 ? `<span style="color:#e65100; font-weight:bold;">$${r.amountUSD}</span>` : ''}</div><button class="del-btn" onclick="deleteRecord(${r.rowId})">🗑 O'chirish</button></div></div>`;
+            });
+            document.getElementById('totalCompanyUzs').innerText = tUZS.toLocaleString() + " UZS";
+            document.getElementById('totalCompanyUsd').innerText = "$" + tUSD.toLocaleString();
+            document.getElementById('adminList').innerHTML = html;
+        }
 
-                        // List uchun HTML yasash
-                        htmlList += `
-                        <div class="history-item">
-                            <div>
-                                <div class="h-date">📅 ${item.date}</div>
-                                <div class="h-comment">📝 ${item.comment}</div>
-                            </div>
-                            <div style="text-align: right;">
-                                ${item.amountUZS > 0 ? `<div class="h-amount uzs">${item.amountUZS.toLocaleString()} UZS</div>` : ''}
-                                ${item.amountUSD > 0 ? `<div class="h-amount usd">$${item.amountUSD.toLocaleString()}</div>` : ''}
+        async function deleteRecord(rowId) {
+            if(!confirm("Haqiqatan ham o'chirmoqchimisiz?")) return;
+            await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "admin_delete", telegramId, rowId }) });
+            loadAdminData();
+        }
+
+        // ================= BOSS: ROLLAR BOSHQRUVI =================
+        async function loadAdmins() {
+            document.getElementById('rolesList').innerHTML = "<p style='text-align:center;'>Yuklanmoqda... ⏳</p>";
+            try {
+                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "get_admins", telegramId: telegramId }) });
+                const data = await res.json();
+                if (data.success) {
+                    let html = '';
+                    data.data.forEach(r => {
+                        html += `<div class="history-item">
+                            <div><strong>${r.name}</strong><br><span style="font-size:12px; color:#888;">ID: ${r.tgId}</span></div>
+                            <div style="text-align:right;">
+                                <span class="role-badge ${r.role==='Boss'?'boss':''}">${r.role}</span><br>
+                                <button class="del-btn" onclick="delAdmin(${r.rowId})" style="margin-top:5px;">🗑</button>
                             </div>
                         </div>`;
                     });
-
-                    // Ekranga chiqarish
-                    document.getElementById('totalUzsValue').innerText = totalUZS.toLocaleString();
-                    document.getElementById('totalUsdValue').innerText = '$' + totalUSD.toLocaleString();
-                    historyList.innerHTML = htmlList;
-
-                } else {
-                    document.getElementById('totalUzsValue').innerText = "0";
-                    document.getElementById('totalUsdValue').innerText = "$0";
-                    historyList.innerHTML = '<div class="loading">Hali hech qanday ma\'lumot yo\'q 📭</div>';
+                    document.getElementById('rolesList').innerHTML = html;
                 }
-            } catch (error) {
-                historyList.innerHTML = '<div class="loading" style="color: red;">❌ Ulanishda xatolik bo\'ldi</div>';
-            }
+            } catch(e) {}
+        }
+
+        async function addAdmin() {
+            const st = document.getElementById('adminStatus');
+            const newTgId = document.getElementById('newAdminId').value;
+            const newName = document.getElementById('newAdminName').value || "Yangi Admin";
+            const newRole = document.getElementById('newAdminRole').value;
+            
+            if(!newTgId) { st.style.color="red"; st.innerText="ID yozilishi shart!"; return; }
+            st.style.color="#888"; st.innerText="Qo'shilmoqda...";
+
+            try {
+                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "add_admin", telegramId, newTgId, newName, newRole }) });
+                const data = await res.json();
+                if (data.success) {
+                    st.style.color="green"; st.innerText="✅ Muvaffaqiyatli qo'shildi!";
+                    document.getElementById('newAdminId').value = ''; document.getElementById('newAdminName').value = '';
+                    loadAdmins();
+                } else { st.style.color="red"; st.innerText="❌ " + (data.error || "Xato"); }
+            } catch(e) {}
+        }
+
+        async function delAdmin(rowId) {
+            if(!confirm("Adminni o'chirishga ishonchingiz komilmi?")) return;
+            try {
+                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "del_admin", telegramId, rowId }) });
+                const data = await res.json();
+                if (data.success) { loadAdmins(); } else { alert(data.error); }
+            } catch(e) {}
         }
     </script>
 </body>
