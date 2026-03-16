@@ -14,8 +14,8 @@ const telegramId = user ? String(user.id) : "Yo'q";
 let globalAdminData = []; 
 let filteredData = [];
 let currentPage = 1;
-const ITEMS_PER_PAGE = 10; // Paginatsiya uchun bitta betda 10 ta
-let myRole = 'User'; // Boshlang'ich rol
+const ITEMS_PER_PAGE = 10; 
+let myRole = 'User'; 
 
 // ================= 1. DASTLABKI YUKLANISH =================
 window.onload = async () => {
@@ -27,23 +27,21 @@ window.onload = async () => {
         if (data.success) {
             renderMyHistory(data.data);
             
-            // Rolni aniqlaymiz
             if (data.isBoss) myRole = 'Boss';
             else if (data.isAdmin) myRole = 'Admin';
-            else if (data.isDirector) myRole = 'Direktor'; // Direktor formati HTML da ham qo'shilgan
+            else if (data.isDirector) myRole = 'Direktor';
 
-            // Rolga qarab menyularni ochish
             if (myRole !== 'User') {
-                document.getElementById('nav-admin').classList.remove('hidden'); // BottomNav dagi Admin tugmasi
+                document.getElementById('nav-admin').classList.remove('hidden');
             }
             if (myRole === 'Boss') {
-                document.getElementById('bossNav').classList.remove('hidden'); // Boss uchun Rollar menyusi
+                document.getElementById('bossNav').classList.remove('hidden');
             }
         }
     } catch (e) { console.error("Xato:", e); }
 };
 
-// ================= 2. NAVIGATSIYA (Oynalarni almashtirish) =================
+// ================= 2. NAVIGATSIYA =================
 function switchTab(tabId, navId) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
@@ -68,21 +66,20 @@ function toggleRate() {
     document.getElementById('rateDiv').classList.toggle('hidden', !isUsd);
 }
 
-// ================= 3. MENING HISOBOTIM =================
+// ================= 3. MENING HISOBOTIM (Jami Budjet bilan) =================
 function renderMyHistory(records) {
-    let tUZS = 0;           // Faqat so'mda kiritilganlar uchun
-    let tUSD = 0;           // Faqat dollarda kiritilganlar uchun
-    let tTotalBudget = 0;   // Umumiy budjet (Barchasi so'mda)
+    let tUZS = 0;           // Faqat so'mda kiritilganlar
+    let tUSD = 0;           // Faqat dollarda kiritilganlar
+    let tTotalBudget = 0;   // JAMI BUDJET (Dollar*Kurs + So'm)
     let html = '';
 
-    records.reverse().forEach(r => {
+    [...records].reverse().forEach(r => {
         const uzsVal = Number(r.amountUZS) || 0;
         const usdVal = Number(r.amountUSD) || 0;
 
-        // 1. Umumiy budjetga hammani qo'shamiz (chunki amountUZS doim so'mda bo'ladi)
+        // amountUZS backendda allaqachon (USD * Rate) qilib saqlanadi
         tTotalBudget += uzsVal;
 
-        // 2. Alohida hisoblagichlar uchun (Faqat vizual ajratish uchun)
         if (usdVal > 0) {
             tUSD += usdVal;
         } else {
@@ -101,12 +98,16 @@ function renderMyHistory(records) {
         </div>`;
     });
 
-    // Ekranga chiqarish
     document.getElementById('myUzs').innerText = tUZS.toLocaleString(); 
     document.getElementById('myUsd').innerText = '$' + tUSD.toLocaleString();
-    document.getElementById('myTotalBudget').innerText = tTotalBudget.toLocaleString() + " UZS";
+    
+    // Jami budjetni ko'rsatish
+    const budgetEl = document.getElementById('myTotalBudget');
+    if (budgetEl) budgetEl.innerText = tTotalBudget.toLocaleString() + " UZS";
+
     document.getElementById('myHistory').innerHTML = html || "<p class='text-center text-gray'>Hali hech qanday xarajat yo'q</p>";
 }
+
 // ================= 4. YANGI XARAJAT QO'SHISH =================
 document.getElementById('financeForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -136,7 +137,7 @@ document.getElementById('financeForm').addEventListener('submit', async (e) => {
     }
 });
 
-// ================= 5. ADMIN/DIREKTOR BAZASI VA FILTRLAR =================
+// ================= 5. ADMIN FILTRLAR VA HISOBOT =================
 async function loadAdminData() {
     document.getElementById('adminList').innerHTML = "<p class='text-center'>Yuklanmoqda... ⏳</p>";
     try {
@@ -146,7 +147,7 @@ async function loadAdminData() {
             globalAdminData = data.data; 
             filteredData = [...globalAdminData];
             currentPage = 1;
-            populateFilters(); // Select qutilarini xodimlar/yillar bilan to'ldirish
+            populateFilters();
             calculateTotal();
             renderAdminPage(); 
         }
@@ -161,7 +162,7 @@ function populateFilters() {
     
     globalAdminData.forEach(r => {
         if(r.name) employees.add(r.name);
-        if(r.date) years.add(r.date.split('/')[2]); // Sana formatidan yilni qirqib olish (DD/MM/YYYY)
+        if(r.date) years.add(r.date.split('/')[2]); 
     });
 
     empSelect.innerHTML = '<option value="all">Barcha xodimlar</option>';
@@ -189,7 +190,7 @@ function applyFilters() {
             let matchesYear = true;
             
             if (item.date) {
-                const parts = item.date.split('/'); // [DD, MM, YYYY]
+                const parts = item.date.split('/');
                 if (month !== 'all') matchesMonth = parts[1] === month;
                 if (year !== 'all') matchesYear = parts[2] === year;
             }
@@ -199,32 +200,22 @@ function applyFilters() {
         currentPage = 1;
         calculateTotal();
         renderAdminPage();
-    }, 300); // 300ms qotmaslik uchun kutish (Debounce)
+    }, 300);
 }
 
 function calculateTotal() {
     let totalBudget = 0;
-    
-    // filteredData ichidagi barcha amountUZS larni qo'shib chiqamiz
-    // Bu yerda dollarlar allaqachon so'mga aylangan bo'ladi (backend hisobi bo'yicha)
     filteredData.forEach(r => {
         totalBudget += Number(r.amountUZS) || 0;
     });
 
-    // Ekranga chiqarish
     const budgetElement = document.getElementById('totalCompanyUzs');
-    if (budgetElement) {
-        budgetElement.innerText = totalBudget.toLocaleString() + " UZS";
-    }
+    if (budgetElement) budgetElement.innerText = totalBudget.toLocaleString() + " UZS";
 
-    // Filtrlangan amallar sonini ham yangilab qo'yamize
     const countElement = document.getElementById('filteredCount');
-    if (countElement) {
-        countElement.innerText = filteredData.length;
-    }
+    if (countElement) countElement.innerText = filteredData.length;
 }
 
-// Sahifalarga bo'lib chizish
 function renderAdminPage() {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     const end = start + ITEMS_PER_PAGE;
@@ -235,12 +226,12 @@ function renderAdminPage() {
         const isUsd = r.amountUSD > 0;
         const rateText = isUsd && r.rate ? `<span style="font-size:10px; color:#888;">(Kurs: ${r.rate})</span>` : '';
         
-        // Rolga qarab TAHRIRLASH va O'CHIRISH tugmalarini chizish
         let actionBtns = '';
         if (myRole === 'Boss' || myRole === 'Admin') {
+            // Tahrirlashga ism va sanani ham uzatamiz
             actionBtns = `
             <div class="action-btns" style="margin-top:8px;">
-                <button class="edit-btn" onclick="openEdit(${r.rowId}, ${r.amountUZS || 0}, ${r.amountUSD || 0}, ${r.rate || 0}, '${r.comment}')">✏️ Tahrirlash</button>
+                <button class="edit-btn" onclick="openEdit(${r.rowId}, ${r.amountUZS}, ${r.amountUSD}, ${r.rate}, '${r.comment}', '${r.name}', '${r.date}')">✏️ Tahrirlash</button>
                 <button class="del-btn" onclick="deleteRecord(${r.rowId})">🗑 O'chirish</button>
             </div>`;
         }
@@ -277,16 +268,14 @@ function renderPaginationControls() {
 function goToPage(page) { 
     currentPage = page; 
     renderAdminPage(); 
-    // Eng tepaga silliq ko'tarilish
     document.getElementById('adminDataArea').scrollIntoView({ behavior: 'smooth' });
 }
 
-// ================= 6. EXCEL (.XLSX) YUKLAB OLISH =================
+// ================= 6. EXCEL (.XLSX) EXPORT =================
 function exportToExcel() {
     try {
-        // 1. Kutubxona yuklanganini tekshirish
         if (typeof XLSX === 'undefined') {
-            alert("Xatolik: Excel kutubxonasi yuklanmagan! Internet aloqasini tekshiring.");
+            alert("Xatolik: Excel kutubxonasi yuklanmagan!");
             return;
         }
 
@@ -295,9 +284,6 @@ function exportToExcel() {
             return;
         }
 
-        tg.MainButton.setText("Excel tayyorlanmoqda...").show();
-
-        // 2. Ma'lumotlarni tartiblash
         const exportData = filteredData.map(r => ({
             "Sana": r.date || "",
             "Xodim": r.name || "",
@@ -307,56 +293,35 @@ function exportToExcel() {
             "Kurs": Number(r.rate) || 0
         }));
 
-        // 3. Excel varag'ini yaratish
         const worksheet = XLSX.utils.json_to_sheet(exportData);
-        
-        // Ustunlar kengligini avtomat sozlash
-        worksheet['!cols'] = [
-            {wch: 12}, {wch: 20}, {wch: 30}, {wch: 15}, {wch: 15}, {wch: 10}
-        ];
+        worksheet['!cols'] = [{wch: 12}, {wch: 20}, {wch: 30}, {wch: 15}, {wch: 15}, {wch: 10}];
 
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Hisobot");
 
-        // 4. Faylni yaratish va yuklab olish
-        // Telegram brauzerida yuklab olish uchun binary ko'rinishida yozish xavfsizroq
-        const wbout = XLSX.write(workbook, {bookType: 'xlsx', type: 'binary'});
-
-        function s2ab(s) {
-            const buf = new ArrayBuffer(s.length);
-            const view = new Uint8Array(buf);
-            for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xFF;
-            return buf;
-        }
-
-        const blob = new Blob([s2ab(wbout)], {type: "application/octet-stream"});
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `Hisobot_${new Date().toISOString().slice(0,10)}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-
-        tg.MainButton.hide();
-        alert("Excel fayl yuklab olishga yuborildi!");
-
+        XLSX.writeFile(workbook, `ERP_Hisobot_${new Date().toISOString().slice(0,10)}.xlsx`);
+        alert("Excel fayl yuklab olindi!");
     } catch (error) {
-        console.error("Excel xatosi:", error);
         alert("Excel yaratishda xato: " + error.message);
-        tg.MainButton.hide();
     }
 }
 
-// ================= 7. TAHRIRLASH VA O'CHIRISH (Modal Logic) =================
-function openEdit(rowId, uzs, usd, rate, comment) {
+// ================= 7. TAHRIRLASH (Tushunarli Modal) =================
+function openEdit(rowId, uzs, usd, rate, comment, name, date) {
     document.getElementById('editRowId').value = rowId;
     document.getElementById('editAmountUZS').value = uzs;
     document.getElementById('editAmountUSD').value = usd;
     document.getElementById('editRate').value = rate;
     document.getElementById('editComment').value = (comment !== 'undefined' && comment !== 'null') ? comment : '';
+    
+    // Headerga kimning ma'lumoti ekanini yozish
+    const headerName = document.getElementById('editHeaderName');
+    const headerDate = document.getElementById('editHeaderDate');
+    if (headerName) headerName.innerText = "👤 " + name;
+    if (headerDate) headerDate.innerText = "📅 " + date;
+    
     document.getElementById('editModal').classList.remove('hidden');
+    tg.HapticFeedback.impactOccurred('medium');
 }
 
 function closeModal() { 
@@ -371,23 +336,22 @@ async function saveEdit() {
     const comment = document.getElementById('editComment').value;
     
     closeModal();
-    // Modal oynadan ma'lumotni olgach Backend dagi 'admin_edit' ga yuborish
     document.getElementById('adminList').innerHTML = "<p class='text-center'>Saqlanmoqda... ⏳</p>";
     await fetch(API_URL, { 
         method: 'POST', 
         body: JSON.stringify({ action: "admin_edit", telegramId, rowId, amountUZS, amountUSD, rate, comment }) 
     });
-    loadAdminData(); // Tahrirlangach bazani yangilab olamiz
+    loadAdminData();
 }
 
 async function deleteRecord(rowId) {
-    if(!confirm("Haqiqatan ham ushbu ma'lumotni o'chirmoqchimisiz?")) return;
+    if(!confirm("Ushbu ma'lumotni o'chirishga ishonchingiz komilmi?")) return;
     document.getElementById('adminList').innerHTML = "<p class='text-center'>O'chirilmoqda... ⏳</p>";
     await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "admin_delete", telegramId, rowId }) });
     loadAdminData();
 }
 
-// ================= 8. ROLLAR BOSHQARUVI (Faqat Boss uchun) =================
+// ================= 8. ROLLAR BOSHQARUVI =================
 async function loadAdmins() {
     document.getElementById('rolesList').innerHTML = "<p class='text-center'>Yuklanmoqda... ⏳</p>";
     try {
@@ -432,7 +396,7 @@ async function addAdmin() {
 }
 
 async function delAdmin(rowId) {
-    if(!confirm("Bu rolni tizimdan o'chirishga ishonchingiz komilmi?")) return;
+    if(!confirm("Bu rolni o'chirishga ishonchingiz komilmi?")) return;
     try {
         const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "del_admin", telegramId, rowId }) });
         const data = await res.json();
