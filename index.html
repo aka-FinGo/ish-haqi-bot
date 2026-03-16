@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fintech ERP</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -46,8 +47,21 @@
                     <button class="btn-export" onclick="exportToCSV()">📥 Hisobotni yuklab olish (CSV)</button>
                 </div>
                 
-                <div class="filter-box">
-                    <input type="text" id="searchInput" placeholder="🔎 Ism, izoh yoki sana bo'yicha qidiring..." onkeyup="debounceSearch()">
+                <div class="filter-box" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
+                    <input type="text" id="searchInput" placeholder="🔎 Ism, izoh yoki sana bo'yicha qidiring..." onkeyup="applyFilters()">
+                    <div style="display: flex; gap: 8px;">
+                        <select id="filterEmployee" onchange="applyFilters()"><option value="all">Barcha xodimlar</option></select>
+                        <select id="filterMonth" onchange="applyFilters()">
+                            <option value="all">Oylar</option>
+                            <option value="01">Yanvar</option><option value="02">Fevral</option>
+                            <option value="03">Mart</option><option value="04">Aprel</option>
+                            <option value="05">May</option><option value="06">Iyun</option>
+                            <option value="07">Iyul</option><option value="08">Avgust</option>
+                            <option value="09">Sentyabr</option><option value="10">Oktyabr</option>
+                            <option value="11">Noyabr</option><option value="12">Dekabr</option>
+                        </select>
+                        <select id="filterYear" onchange="applyFilters()"><option value="all">Yillar</option></select>
+                    </div>
                 </div>
                 
                 <div id="adminList"></div>
@@ -59,7 +73,11 @@
                     <h4>Yangi Rol Tayinlash</h4>
                     <input type="text" id="newAdminId" placeholder="Telegram ID">
                     <input type="text" id="newAdminName" placeholder="Ism">
-                    <select id="newAdminRole"><option value="Admin">Admin</option><option value="Boss">Boss</option></select>
+                    <select id="newAdminRole">
+                        <option value="Admin">Admin (O'chirish, tahrirlash)</option>
+                        <option value="Direktor">Direktor (Faqat ko'rish va Excel)</option>
+                        <option value="Boss">Boshliq (To'liq huquq)</option>
+                    </select>
                     <button class="btn-main bg-purple" onclick="addAdmin()">Qo'shish</button>
                     <div id="adminStatus" class="status-msg"></div>
                 </div>
