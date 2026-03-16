@@ -3,54 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buxgalteriya</title>
+    <title>Buxgalteriya va Hisobot</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; background: var(--tg-theme-bg-color, #ffffff); color: var(--tg-theme-text-color, #000000); }
-        .container { max-width: 400px; margin: 0 auto; }
-        h2 { text-align: center; }
-        label { display: block; margin-top: 15px; font-weight: bold; }
-        input, select, textarea { width: 100%; box-sizing: border-box; padding: 12px; margin-top: 5px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; background: var(--tg-theme-secondary-bg-color, #f4f4f5); color: var(--tg-theme-text-color, #000); }
-        button { width: 100%; padding: 15px; margin-top: 25px; background: var(--tg-theme-button-color, #2481cc); color: var(--tg-theme-button-text-color, #ffffff); border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 15px; background: var(--tg-theme-bg-color, #f4f4f5); color: var(--tg-theme-text-color, #000000); }
+        .container { max-width: 450px; margin: 0 auto; background: var(--tg-theme-bg-color, #ffffff); border-radius: 12px; padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        
+        /* Tab Menyular */
+        .tabs { display: flex; margin-bottom: 20px; background: var(--tg-theme-secondary-bg-color, #e0e0e0); border-radius: 8px; overflow: hidden; }
+        .tab-btn { flex: 1; padding: 12px; text-align: center; font-weight: bold; cursor: pointer; color: var(--tg-theme-text-color, #333); transition: 0.3s; }
+        .tab-btn.active { background: var(--tg-theme-button-color, #2481cc); color: var(--tg-theme-button-text-color, #fff); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        h2, h3 { text-align: center; margin-top: 0; }
+        label { display: block; margin-top: 12px; font-size: 14px; font-weight: bold; color: var(--tg-theme-hint-color, #555); }
+        input, select, textarea { width: 100%; box-sizing: border-box; padding: 12px; margin-top: 6px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; background: var(--tg-theme-secondary-bg-color, #fafafa); color: var(--tg-theme-text-color, #000); }
+        button { width: 100%; padding: 14px; margin-top: 20px; background: var(--tg-theme-button-color, #2e8b57); color: var(--tg-theme-button-text-color, #ffffff); border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; }
         button:disabled { opacity: 0.6; }
+        
+        /* Hisobot kartochkalari */
+        .summary-cards { display: flex; gap: 10px; margin-bottom: 20px; }
+        .card { flex: 1; padding: 15px; border-radius: 8px; text-align: center; color: #fff; font-weight: bold; }
+        .card.uzs { background: linear-gradient(135deg, #43a047, #2e7d32); }
+        .card.usd { background: linear-gradient(135deg, #fb8c00, #e65100); }
+        .card-title { font-size: 12px; opacity: 0.9; margin-bottom: 5px; }
+        .card-value { font-size: 18px; }
+
+        /* Tarix ro'yxati */
+        .history-item { padding: 12px; border-bottom: 1px solid var(--tg-theme-secondary-bg-color, #eee); display: flex; justify-content: space-between; align-items: center; }
+        .history-item:last-child { border-bottom: none; }
+        .h-date { font-size: 12px; color: var(--tg-theme-hint-color, #888); }
+        .h-comment { font-size: 14px; font-weight: 500; margin-top: 4px; }
+        .h-amount { font-weight: bold; font-size: 15px; }
+        .h-amount.uzs { color: #2e7d32; }
+        .h-amount.usd { color: #e65100; }
+        
         #status { margin-top: 15px; text-align: center; font-weight: bold; }
+        .loading { text-align: center; color: var(--tg-theme-hint-color, #888); font-style: italic; padding: 20px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2 id="greeting">💸 Buxgalteriya</h2>
-        <form id="financeForm">
-            <label>Summa: <input type="number" id="amount" required></label>
-            <label>Valyuta: 
+        <div class="tabs">
+            <div class="tab-btn active" onclick="switchTab('addTab')">➕ Qo'shish</div>
+            <div class="tab-btn" onclick="switchTab('reportTab')">📊 Hisobotim</div>
+        </div>
+
+        <div id="addTab" class="tab-content active">
+            <h2 id="greeting">💸 Buxgalteriya</h2>
+            <form id="financeForm">
+                <label>Summa:</label>
+                <input type="number" id="amount" required placeholder="Masalan: 500000">
+                
+                <label>Valyuta:</label>
                 <select id="currency" onchange="toggleRate()">
                     <option value="UZS">So'm (UZS)</option>
                     <option value="USD">Dollar (USD)</option>
                 </select>
-            </label>
-            <div id="rateDiv" style="display: none;">
-                <label style="color: #e65100;">Kurs: <input type="number" id="rate"></label>
+                
+                <div id="rateDiv" style="display: none;">
+                    <label style="color: #e65100;">Kurs (1$ uchun):</label>
+                    <input type="number" id="rate" placeholder="12600">
+                </div>
+                
+                <label>Izoh:</label>
+                <textarea id="comment" rows="2" placeholder="Nima maqsadda?"></textarea>
+                
+                <button type="submit" id="submitBtn">Yuborish</button>
+            </form>
+            <div id="status"></div>
+        </div>
+
+        <div id="reportTab" class="tab-content">
+            <h3>Jami Xarajatlarim</h3>
+            
+            <div class="summary-cards">
+                <div class="card uzs">
+                    <div class="card-title">Jami So'm (UZS)</div>
+                    <div class="card-value" id="totalUzsValue">0</div>
+                </div>
+                <div class="card usd">
+                    <div class="card-title">Jami Dollar (USD)</div>
+                    <div class="card-value" id="totalUsdValue">$0</div>
+                </div>
             </div>
-            <label>Izoh: <textarea id="comment" rows="3"></textarea></label>
-            <button type="submit" id="submitBtn">Yuborish</button>
-        </form>
-        <div id="status"></div>
+
+            <h3>Oxirgi amallar</h3>
+            <div id="historyList">
+                <div class="loading">Ma'lumotlar yuklanmoqda...</div>
+            </div>
+        </div>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
         
+        // ⚠️ DIQQAT: SHU YERGA GOOGLE SCRIPT SSILKASINI QO'YING!
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyELe4JB8a4NpmaZr2wlonnOwu9gDIkumw3JEu2VuMyl--pwImUrcvkG4e5H1GnONk9Pw/exec";
+        
         const user = tg.initDataUnsafe?.user;
         const employeeName = user ? `${user.first_name} ${user.last_name || ''}`.trim() : "Noma'lum Xodim";
         const telegramId = user ? String(user.id) : "Yo'q";
         
-        document.getElementById('greeting').innerText = `💸 Salom, ${user ? user.first_name : 'Xodim'}!`;
+        document.getElementById('greeting').innerText = `👋 Salom, ${user ? user.first_name : 'Xodim'}!`;
 
+        // Oynalarni (Tab) almashtirish funksiyasi
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+
+            // Agar Hisobot ochilsa, bazadan o'qib kelishni boshlaymiz
+            if (tabId === 'reportTab') {
+                loadReport();
+            }
+        }
+
+        // Valyuta o'zgarganda kurs oynasini chiqarish
         function toggleRate() {
             const curr = document.getElementById('currency').value;
             document.getElementById('rateDiv').style.display = curr === 'USD' ? 'block' : 'none';
         }
 
+        // Ma'lumotlarni yuborish (POST)
         document.getElementById('financeForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
@@ -59,13 +138,13 @@
             let amount = parseFloat(document.getElementById('amount').value);
             let currency = document.getElementById('currency').value;
             let rate = parseFloat(document.getElementById('rate').value) || 0;
-            let comment = document.getElementById('comment').value;
+            let comment = document.getElementById('comment').value || "Izoh yo'q";
 
             let amountUZS = amount;
             let amountUSD = 0;
 
             if (currency === 'USD') {
-                if (rate < 5000) { alert("To'g'ri kurs kiriting!"); return; }
+                if (rate < 5000) { alert("Iltimos, haqiqiy kursni kiriting!"); return; }
                 amountUSD = amount;
                 amountUZS = amount * rate;
             } else { rate = 0; }
@@ -78,15 +157,27 @@
             const payload = { employeeName, telegramId, amountUZS, amountUSD, rate, comment, date };
 
             try {
-                // ⚠️ PASTDAGI SSILKANI O'ZINGIZNING GOOGLE SCRIPT SSILKANGIZGA ALMASHTIRING
-                await fetch("https://script.google.com/macros/s/AKfycbyELe4JB8a4NpmaZr2wlonnOwu9gDIkumw3JEu2VuMyl--pwImUrcvkG4e5H1GnONk9Pw/exec", {
+                await fetch(GOOGLE_SCRIPT_URL, {
                     method: "POST",
                     body: JSON.stringify(payload)
                 });
                 
                 status.style.color = "green";
                 status.innerText = "✅ Muvaffaqiyatli saqlandi!";
-                setTimeout(() => tg.close(), 2000);
+                
+                // Formani tozalash
+                document.getElementById('amount').value = '';
+                document.getElementById('comment').value = '';
+                
+                setTimeout(() => {
+                    status.innerText = "";
+                    btn.disabled = false;
+                    btn.innerText = "Yuborish";
+                    // Saqlangach, avtomat Hisobot oynasiga o'tkazib yuboramiz
+                    switchTab('reportTab');
+                    document.querySelectorAll('.tab-btn')[1].classList.add('active');
+                    document.querySelectorAll('.tab-btn')[0].classList.remove('active');
+                }, 1500);
             } catch (err) {
                 status.style.color = "red";
                 status.innerText = "❌ Xatolik yuz berdi.";
@@ -94,6 +185,58 @@
                 btn.innerText = "Yuborish";
             }
         });
+
+        // Hisobotlarni o'qish (GET) va ekranga chiqarish
+        async function loadReport() {
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = '<div class="loading">Ma\'lumotlar yuklanmoqda... ⏳</div>';
+            
+            try {
+                // Telegram ID ni yuborib, faqat shu xodimning xarajatlarini olib kelamiz
+                const response = await fetch(`${GOOGLE_SCRIPT_URL}?tgId=${telegramId}`);
+                const result = await response.json();
+                
+                if (result.success && result.data.length > 0) {
+                    let totalUZS = 0;
+                    let totalUSD = 0;
+                    let htmlList = '';
+
+                    // Oxirgi kiritilganlar tepada turishi uchun ro'yxatni teskari aylantiramiz
+                    const reversedData = result.data.reverse();
+
+                    reversedData.forEach(item => {
+                        // Jami hisob-kitob
+                        totalUZS += Number(item.amountUZS) || 0;
+                        totalUSD += Number(item.amountUSD) || 0;
+
+                        // List uchun HTML yasash
+                        htmlList += `
+                        <div class="history-item">
+                            <div>
+                                <div class="h-date">📅 ${item.date}</div>
+                                <div class="h-comment">📝 ${item.comment}</div>
+                            </div>
+                            <div style="text-align: right;">
+                                ${item.amountUZS > 0 ? `<div class="h-amount uzs">${item.amountUZS.toLocaleString()} UZS</div>` : ''}
+                                ${item.amountUSD > 0 ? `<div class="h-amount usd">$${item.amountUSD.toLocaleString()}</div>` : ''}
+                            </div>
+                        </div>`;
+                    });
+
+                    // Ekranga chiqarish
+                    document.getElementById('totalUzsValue').innerText = totalUZS.toLocaleString();
+                    document.getElementById('totalUsdValue').innerText = '$' + totalUSD.toLocaleString();
+                    historyList.innerHTML = htmlList;
+
+                } else {
+                    document.getElementById('totalUzsValue').innerText = "0";
+                    document.getElementById('totalUsdValue').innerText = "$0";
+                    historyList.innerHTML = '<div class="loading">Hali hech qanday ma\'lumot yo\'q 📭</div>';
+                }
+            } catch (error) {
+                historyList.innerHTML = '<div class="loading" style="color: red;">❌ Ulanishda xatolik bo\'ldi</div>';
+            }
+        }
     </script>
 </body>
 </html>
