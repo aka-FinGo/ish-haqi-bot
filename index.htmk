@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buxgalteriya</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; background: var(--tg-theme-bg-color, #ffffff); color: var(--tg-theme-text-color, #000000); }
+        .container { max-width: 400px; margin: 0 auto; }
+        h2 { text-align: center; }
+        label { display: block; margin-top: 15px; font-weight: bold; }
+        input, select, textarea { width: 100%; box-sizing: border-box; padding: 12px; margin-top: 5px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; background: var(--tg-theme-secondary-bg-color, #f4f4f5); color: var(--tg-theme-text-color, #000); }
+        button { width: 100%; padding: 15px; margin-top: 25px; background: var(--tg-theme-button-color, #2481cc); color: var(--tg-theme-button-text-color, #ffffff); border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        button:disabled { opacity: 0.6; }
+        #status { margin-top: 15px; text-align: center; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 id="greeting">💸 Buxgalteriya</h2>
+        <form id="financeForm">
+            <label>Summa: <input type="number" id="amount" required></label>
+            <label>Valyuta: 
+                <select id="currency" onchange="toggleRate()">
+                    <option value="UZS">So'm (UZS)</option>
+                    <option value="USD">Dollar (USD)</option>
+                </select>
+            </label>
+            <div id="rateDiv" style="display: none;">
+                <label style="color: #e65100;">Kurs: <input type="number" id="rate"></label>
+            </div>
+            <label>Izoh: <textarea id="comment" rows="3"></textarea></label>
+            <button type="submit" id="submitBtn">Yuborish</button>
+        </form>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        
+        const user = tg.initDataUnsafe?.user;
+        const employeeName = user ? `${user.first_name} ${user.last_name || ''}`.trim() : "Noma'lum Xodim";
+        const telegramId = user ? String(user.id) : "Yo'q";
+        
+        document.getElementById('greeting').innerText = `💸 Salom, ${user ? user.first_name : 'Xodim'}!`;
+
+        function toggleRate() {
+            const curr = document.getElementById('currency').value;
+            document.getElementById('rateDiv').style.display = curr === 'USD' ? 'block' : 'none';
+        }
+
+        document.getElementById('financeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const status = document.getElementById('status');
+            
+            let amount = parseFloat(document.getElementById('amount').value);
+            let currency = document.getElementById('currency').value;
+            let rate = parseFloat(document.getElementById('rate').value) || 0;
+            let comment = document.getElementById('comment').value;
+
+            let amountUZS = amount;
+            let amountUSD = 0;
+
+            if (currency === 'USD') {
+                if (rate < 5000) { alert("To'g'ri kurs kiriting!"); return; }
+                amountUSD = amount;
+                amountUZS = amount * rate;
+            } else { rate = 0; }
+
+            const date = new Intl.DateTimeFormat('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Tashkent' }).format(new Date());
+
+            btn.disabled = true;
+            btn.innerText = "Yuborilmoqda...";
+            
+            const payload = { employeeName, telegramId, amountUZS, amountUSD, rate, comment, date };
+
+            try {
+                // ⚠️ PASTDAGI SSILKANI O'ZINGIZNING GOOGLE SCRIPT SSILKANGIZGA ALMASHTIRING
+                await fetch("https://script.google.com/macros/s/AKfycbyELe4JB8a4NpmaZr2wlonnOwu9gDIkumw3JEu2VuMyl--pwImUrcvkG4e5H1GnONk9Pw/exec", {
+                    method: "POST",
+                    body: JSON.stringify(payload)
+                });
+                
+                status.style.color = "green";
+                status.innerText = "✅ Muvaffaqiyatli saqlandi!";
+                setTimeout(() => tg.close(), 2000);
+            } catch (err) {
+                status.style.color = "red";
+                status.innerText = "❌ Xatolik yuz berdi.";
+                btn.disabled = false;
+                btn.innerText = "Yuborish";
+            }
+        });
+    </script>
+</body>
+</html>
