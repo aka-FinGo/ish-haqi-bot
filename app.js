@@ -272,7 +272,7 @@ function goToPage(page) {
 }
 
 // ================= 6. EXCEL (.XLSX) EXPORT =================
-function exportToExcel() {
+async function exportToExcel() {
     try {
         if (typeof XLSX === 'undefined') {
             alert("Xatolik: Excel kutubxonasi yuklanmagan!");
@@ -284,6 +284,10 @@ function exportToExcel() {
             return;
         }
 
+        // Telegramda yuklanish holatini ko'rsatish
+        tg.MainButton.setText("Fayl botga yuborilmoqda...").show();
+
+        // 1. Ma'lumotlarni tayyorlash
         const exportData = filteredData.map(r => ({
             "Sana": r.date || "",
             "Xodim": r.name || "",
@@ -293,16 +297,40 @@ function exportToExcel() {
             "Kurs": Number(r.rate) || 0
         }));
 
+        // 2. Excel varag'ini yaratish
         const worksheet = XLSX.utils.json_to_sheet(exportData);
-        worksheet['!cols'] = [{wch: 12}, {wch: 20}, {wch: 30}, {wch: 15}, {wch: 15}, {wch: 10}];
-
+        worksheet['!cols'] = [{wch: 12}, {wch: 20}, {wch: 30}, {wch: 15}, {wch: 15}, {wch: 15}];
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Hisobot");
 
-        XLSX.writeFile(workbook, `ERP_Hisobot_${new Date().toISOString().slice(0,10)}.xlsx`);
-        alert("Excel fayl yuklab olindi!");
+        // 3. Excelni base64 formatiga o'tkazish
+        const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+        const fileName = `Hisobot_${new Date().toISOString().slice(0,10)}.xlsx`;
+
+        // 4. Serverga (Google Script) yuborish
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: "export_to_bot",
+                telegramId: telegramId,
+                base64: wbout,
+                fileName: fileName
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            tg.MainButton.hide();
+            tg.showAlert("✅ Hisobot botingizga yuborildi! Mini appni yopib, xabarlaringizni tekshirishingiz mumkin.");
+        } else {
+            throw new Error(result.error || "Server xatosi");
+        }
+
     } catch (error) {
-        alert("Excel yaratishda xato: " + error.message);
+        console.error("Excel yuborishda xato:", error);
+        alert("Xatolik yuz berdi: " + error.message);
+        tg.MainButton.hide();
     }
 }
 
