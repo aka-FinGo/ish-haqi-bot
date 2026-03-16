@@ -70,26 +70,43 @@ function toggleRate() {
 
 // ================= 3. MENING HISOBOTIM =================
 function renderMyHistory(records) {
-    let tUZS = 0, tUSD = 0, html = '';
+    let tUZS = 0;           // Faqat so'mda kiritilganlar uchun
+    let tUSD = 0;           // Faqat dollarda kiritilganlar uchun
+    let tTotalBudget = 0;   // Umumiy budjet (Barchasi so'mda)
+    let html = '';
+
     records.reverse().forEach(r => {
-        tUZS += Number(r.amountUZS) || 0; 
-        tUSD += Number(r.amountUSD) || 0;
+        const uzsVal = Number(r.amountUZS) || 0;
+        const usdVal = Number(r.amountUSD) || 0;
+
+        // 1. Umumiy budjetga hammani qo'shamiz (chunki amountUZS doim so'mda bo'ladi)
+        tTotalBudget += uzsVal;
+
+        // 2. Alohida hisoblagichlar uchun (Faqat vizual ajratish uchun)
+        if (usdVal > 0) {
+            tUSD += usdVal;
+        } else {
+            tUZS += uzsVal;
+        }
+
         html += `<div class="history-item" style="flex-direction:column; align-items:stretch;">
             <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
                 <span style="font-weight:600;">${r.comment}</span>
                 <span style="font-size:11px; color:#888;">📅 ${r.date}</span>
             </div>
             <div style="text-align:right;">
-                ${r.amountUZS > 0 ? `<div style="color:#2e7d32; font-weight:bold;">${Number(r.amountUZS).toLocaleString()} UZS</div>` : ''}
-                ${r.amountUSD > 0 ? `<div style="color:#e65100; font-weight:bold;">$${Number(r.amountUSD).toLocaleString()}</div>` : ''}
+                ${uzsVal > 0 ? `<div style="color:#2e7d32; font-weight:bold;">${uzsVal.toLocaleString()} UZS</div>` : ''}
+                ${usdVal > 0 ? `<div style="color:#e65100; font-weight:bold;">$${usdVal.toLocaleString()}</div>` : ''}
             </div>
         </div>`;
     });
+
+    // Ekranga chiqarish
     document.getElementById('myUzs').innerText = tUZS.toLocaleString(); 
     document.getElementById('myUsd').innerText = '$' + tUSD.toLocaleString();
+    document.getElementById('myTotalBudget').innerText = tTotalBudget.toLocaleString() + " UZS";
     document.getElementById('myHistory').innerHTML = html || "<p class='text-center text-gray'>Hali hech qanday xarajat yo'q</p>";
 }
-
 // ================= 4. YANGI XARAJAT QO'SHISH =================
 document.getElementById('financeForm').addEventListener('submit', async (e) => {
     e.preventDefault();
