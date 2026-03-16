@@ -16,7 +16,8 @@ let filteredData = [];
 let currentPage = 1;
 const ITEMS_PER_PAGE = 10; 
 let myRole = 'User'; 
-
+let myFullRecords = []; // Xodimning hamma ma'lumotlari (original)
+let myFilteredRecords = []; // Filtrlangan ma'lumotlar
 // ================= 1. DASTLABKI YUKLANISH =================
 window.onload = async () => {
     document.getElementById('greeting').innerText = `Salom, ${user ? user.first_name : 'Xodim'}!`;
@@ -284,30 +285,37 @@ async function exportToExcel() {
             return;
         }
 
-        // Telegramda yuklanish holatini ko'rsatish
         tg.MainButton.setText("Fayl botga yuborilmoqda...").show();
 
-        // 1. Ma'lumotlarni tayyorlash
-        const exportData = filteredData.map(r => ({
-            "Sana": r.date || "",
-            "Xodim": r.name || "",
-            "Izoh": r.comment || "",
-            "Summa (UZS)": Number(r.amountUZS) || 0,
-            "Summa (USD)": Number(r.amountUSD) || 0,
-            "Kurs": Number(r.rate) || 0
-        }));
+        // 1. Ma'lumotlarni Excel uchun tayyorlash
+        const exportData = filteredData.map(r => {
+            const isUsd = Number(r.amountUSD) > 0;
+            return {
+                "Sana": r.date || "",
+                "Xodim": r.name || "",
+                "Izoh": r.comment || "",
+                "Summa (UZS)": Number(r.amountUZS) || 0,
+                "Summa (USD)": Number(r.amountUSD) || 0,
+                "Kurs": isUsd ? (Number(r.rate) || "Ko'rsatilmagan") : "-" // Dollarda bo'lsa kursni yozadi
+            };
+        });
 
         // 2. Excel varag'ini yaratish
         const worksheet = XLSX.utils.json_to_sheet(exportData);
-        worksheet['!cols'] = [{wch: 12}, {wch: 20}, {wch: 30}, {wch: 15}, {wch: 15}, {wch: 15}];
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Hisobot");
+        
+        // Ustunlar kengligini chiroyli qilish
+        worksheet['!cols'] = [
+            {wch: 12}, {wch: 20}, {wch: 35}, {wch: 15}, {wch: 15}, {wch: 15}
+        ];
 
-        // 3. Excelni base64 formatiga o'tkazish
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Fintech_Hisobot");
+
+        // 3. Base64 formatiga o'tkazish
         const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
         const fileName = `Hisobot_${new Date().toISOString().slice(0,10)}.xlsx`;
 
-        // 4. Serverga (Google Script) yuborish
+        // 4. Bot orqali yuborish (Serverga so'rov)
         const response = await fetch(API_URL, {
             method: 'POST',
             body: JSON.stringify({
@@ -322,14 +330,14 @@ async function exportToExcel() {
 
         if (result.success) {
             tg.MainButton.hide();
-            tg.showAlert("✅ Hisobot botingizga yuborildi! Mini appni yopib, xabarlaringizni tekshirishingiz mumkin.");
+            tg.showAlert("✅ Excel hisobot shaxsiy xabaringizga (Botdan) yuborildi!");
         } else {
-            throw new Error(result.error || "Server xatosi");
+            throw new Error(result.error || "Faylni yuborishda xatolik");
         }
 
     } catch (error) {
-        console.error("Excel yuborishda xato:", error);
-        alert("Xatolik yuz berdi: " + error.message);
+        console.error("Export xatosi:", error);
+        alert("Xatolik: Ma'lumotni Excel qilishda muammo bo'ldi. " + error.message);
         tg.MainButton.hide();
     }
 }
