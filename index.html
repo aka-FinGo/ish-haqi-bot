@@ -10,49 +10,57 @@
 </head>
 <body>
     <div class="container">
+
+        <!-- ========== TAB 1: MENING HISOBOTIM ========== -->
         <div id="reportTab" class="tab-content active">
-    <h2 id="greeting" style="margin-top: 5px;">Salom, Xodim!</h2>
-    
-    <div class="summary-cards" style="flex-wrap: wrap;">
-        <div class="s-card uzs"><div>So'm</div><div id="myUzs">0</div></div>
-        <div class="s-card usd"><div>Dollar</div><div id="myUsd">$0</div></div>
-        <div class="s-card budget" style="background: linear-gradient(135deg, #1e3c72, #2a5298); width: 100%; margin-top: 10px; flex: none;">
-            <div>Jami Budjet (So'mda)</div>
-            <div id="myTotalBudget" style="font-size:22px; margin-top:5px; font-weight: 800;">0 UZS</div>
+            <h2 id="greeting" style="margin-top:5px;">Salom, Xodim!</h2>
+
+            <div class="summary-cards" style="flex-wrap:wrap;">
+                <div class="s-card uzs"><div>So'm</div><div id="myUzs">0</div></div>
+                <div class="s-card usd"><div>Dollar</div><div id="myUsd">$0</div></div>
+                <div class="s-card budget" style="background:linear-gradient(135deg,#1e3c72,#2a5298);width:100%;margin-top:10px;flex:none;">
+                    <div>Jami Budjet (So'mda)</div>
+                    <div id="myTotalBudget" style="font-size:22px;margin-top:5px;font-weight:800;">0 UZS</div>
+                </div>
+            </div>
+
+            <div class="card" style="padding:12px;margin-top:15px;">
+                <div style="display:flex;gap:8px;margin-bottom:10px;">
+                    <select id="myFilterMonth" onchange="applyMyFilters()" style="padding:8px;font-size:13px;">
+                        <option value="all">Barcha oylar</option>
+                        <option value="01">Yanvar</option><option value="02">Fevral</option>
+                        <option value="03">Mart</option><option value="04">Aprel</option>
+                        <option value="05">May</option><option value="06">Iyun</option>
+                        <option value="07">Iyul</option><option value="08">Avgust</option>
+                        <option value="09">Sentyabr</option><option value="10">Oktyabr</option>
+                        <option value="11">Noyabr</option><option value="12">Dekabr</option>
+                    </select>
+                    <select id="myFilterYear" onchange="applyMyFilters()" style="padding:8px;font-size:13px;">
+                        <option value="all">Yillar</option>
+                    </select>
+                </div>
+                <button class="btn-main" onclick="exportMyExcel()" style="margin-top:0;padding:10px;font-size:14px;background:#2a5298;">
+                    📥 O'z hisobotimni yuklab olish (XLSX)
+                </button>
+            </div>
+
+            <h4 style="color:#555;margin-bottom:8px;">Amallar ro'yxati</h4>
+            <div id="myHistory"></div>
         </div>
-    </div>
 
-    <div class="card" style="padding: 12px; margin-top: 15px;">
-        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-            <select id="myFilterMonth" onchange="applyMyFilters()" style="padding: 8px; font-size: 13px;">
-                <option value="all">Barcha oylar</option>
-                <option value="01">Yanvar</option><option value="02">Fevral</option>
-                <option value="03">Mart</option><option value="04">Aprel</option>
-                <option value="05">May</option><option value="06">Iyun</option>
-                <option value="07">Iyul</option><option value="08">Avgust</option>
-                <option value="09">Sentyabr</option><option value="10">Oktyabr</option>
-                <option value="11">Noyabr</option><option value="12">Dekabr</option>
-            </select>
-            <select id="myFilterYear" onchange="applyMyFilters()" style="padding: 8px; font-size: 13px;">
-                <option value="all">Yillar</option>
-            </select>
-        </div>
-        <button class="btn-main" onclick="exportMyExcel()" style="margin-top: 0; padding: 10px; font-size: 14px; background: #2a5298;">
-            📥 O'z hisobotimni yuklab olish (XLSX)
-        </button>
-    </div>
-
-    <h4 style="color:#555; margin-bottom: 8px;">Amallar ro'yxati</h4>
-    <div id="myHistory"></div>
-</div>
-
+        <!-- ========== TAB 2: YANGI XARAJAT ========== -->
         <div id="addTab" class="tab-content">
             <div class="card">
                 <h3 class="text-center text-green">Yangi Xarajat</h3>
                 <form id="financeForm">
                     <input type="number" id="amount" required placeholder="Summa">
-                    <select id="currency" onchange="toggleRate()"><option value="UZS">So'm</option><option value="USD">Dollar</option></select>
-                    <div id="rateDiv" class="hidden"><input type="number" id="rate" placeholder="Kurs (12600)"></div>
+                    <select id="currency" onchange="toggleRate()">
+                        <option value="UZS">So'm</option>
+                        <option value="USD">Dollar</option>
+                    </select>
+                    <div id="rateDiv" class="hidden">
+                        <input type="number" id="rate" placeholder="Kurs (12600)">
+                    </div>
                     <textarea id="comment" rows="2" placeholder="Izoh..."></textarea>
                     <button type="submit" class="btn-main" id="submitBtn">Saqlash</button>
                 </form>
@@ -60,30 +68,33 @@
             </div>
         </div>
 
+        <!-- ========== TAB 3: ADMIN ========== -->
         <div id="adminTab" class="tab-content">
-            <div class="sub-tabs" id="bossNav" class="hidden">
+
+            <!-- FIX: bitta class atributi, hidden to'g'ri -->
+            <div class="sub-tabs hidden" id="bossNav">
                 <div class="sub-btn active" onclick="switchAdminSub('adminDataArea', this)">Xarajatlar</div>
                 <div class="sub-btn" onclick="switchAdminSub('adminRolesArea', this); loadAdmins();">Rollar</div>
             </div>
 
+            <!-- FIX: adminDataArea ichida pagination ham bor -->
             <div id="adminDataArea">
-    <div class="card" style="background: linear-gradient(135deg, #1e3c72, #2a5298); color: white; border-radius: 16px; padding: 20px; margin-bottom: 20px;">
-        <div style="font-size: 13px; opacity: 0.8;">Kompaniya bo'yicha Jami Budjet (So'mda)</div>
-        <div id="totalCompanyUzs" style="font-size: 26px; font-weight: 800; margin-top: 8px;">0 UZS</div>
-        <div style="display: flex; justify-content: space-between; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px;">
-            <div style="font-size: 12px;">📊 Filtrlangan: <span id="filteredCount">0</span> ta amal</div>
-            <button onclick="exportToExcel()" style="background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 4px 10px; border-radius: 8px; font-size: 11px; cursor: pointer;">📥 Excel</button>
-        </div>
-    </div>
-    
-    <div class="filter-box">
-        </div>
-    
-           
-                <div class="filter-box" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
+                <div class="card" style="background:linear-gradient(135deg,#1e3c72,#2a5298);color:white;border-radius:16px;padding:20px;margin-bottom:20px;">
+                    <div style="font-size:13px;opacity:0.8;">Kompaniya bo'yicha Jami Budjet (So'mda)</div>
+                    <div id="totalCompanyUzs" style="font-size:26px;font-weight:800;margin-top:8px;">0 UZS</div>
+                    <div style="display:flex;justify-content:space-between;margin-top:15px;border-top:1px solid rgba(255,255,255,0.2);padding-top:10px;">
+                        <div style="font-size:12px;">📊 Filtrlangan: <span id="filteredCount">0</span> ta amal</div>
+                        <!-- FIX: exportToExcel() → exportAdminExcel() -->
+                        <button onclick="exportAdminExcel()" style="background:rgba(255,255,255,0.2);border:1px solid white;color:white;padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;">📥 Excel</button>
+                    </div>
+                </div>
+
+                <div class="filter-box" style="display:flex;flex-direction:column;gap:8px;margin-bottom:15px;">
                     <input type="text" id="searchInput" placeholder="🔎 Ism, izoh yoki sana bo'yicha qidiring..." onkeyup="applyFilters()">
-                    <div style="display: flex; gap: 8px;">
-                        <select id="filterEmployee" onchange="applyFilters()"><option value="all">Barcha xodimlar</option></select>
+                    <div style="display:flex;gap:8px;">
+                        <select id="filterEmployee" onchange="applyFilters()">
+                            <option value="all">Barcha xodimlar</option>
+                        </select>
                         <select id="filterMonth" onchange="applyFilters()">
                             <option value="all">Oylar</option>
                             <option value="01">Yanvar</option><option value="02">Fevral</option>
@@ -93,16 +104,18 @@
                             <option value="09">Sentyabr</option><option value="10">Oktyabr</option>
                             <option value="11">Noyabr</option><option value="12">Dekabr</option>
                         </select>
-                        <select id="filterYear" onchange="applyFilters()"><option value="all">Yillar</option></select>
+                        <select id="filterYear" onchange="applyFilters()">
+                            <option value="all">Yillar</option>
+                        </select>
                     </div>
                 </div>
-                <div id="adminList"></div>
-</div>
-         
+
+                <!-- FIX: bitta adminList, pagination shu yerda -->
                 <div id="adminList"></div>
                 <div id="pagination" class="pagination"></div>
             </div>
 
+            <!-- FIX: adminRolesArea adminTab ICHIDA -->
             <div id="adminRolesArea" class="hidden">
                 <div class="card">
                     <h4>Yangi Rol Tayinlash</h4>
@@ -118,59 +131,64 @@
                 </div>
                 <div id="rolesList"></div>
             </div>
+
+        </div><!-- /adminTab -->
+
+    </div><!-- /container -->
+
+    <!-- ========== TAHRIRLASH MODALI ========== -->
+    <div id="editModal" class="modal hidden">
+        <div class="modal-content fintech-modal">
+            <div class="modal-header">
+                <h3 id="editHeaderName">👤 Xodim ismi</h3>
+                <p id="editHeaderDate">📅 16/03/2026</p>
+            </div>
+            <form id="editForm" onsubmit="event.preventDefault(); saveEdit();">
+                <input type="hidden" id="editRowId">
+                <div class="input-group">
+                    <label>Summa (UZS):</label>
+                    <input type="number" id="editAmountUZS" placeholder="So'mda">
+                </div>
+                <div class="input-group">
+                    <label>Summa (USD):</label>
+                    <input type="number" id="editAmountUSD" placeholder="Dollarda">
+                </div>
+                <div class="input-group">
+                    <label>Kurs (1$ uchun):</label>
+                    <input type="number" id="editRate" placeholder="Kursni kiriting">
+                </div>
+                <div class="input-group">
+                    <label>Izoh:</label>
+                    <textarea id="editComment" rows="3" placeholder="Izohni o'zgartirish..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn-main">💾 Saqlash</button>
+                    <button type="button" class="btn-main bg-red" onclick="closeModal()">❌ Bekor qilish</button>
+                </div>
+            </form>
         </div>
     </div>
 
-   <div id="editModal" class="modal hidden">
-    <div class="modal-content fintech-modal">
-        <div class="modal-header">
-            <h3 id="editHeaderName">👤 Xodim ismi</h3>
-            <p id="editHeaderDate">📅 16/03/2026</p>
-        </div>
-
-        <form id="editForm" onsubmit="event.preventDefault(); saveEdit();">
-            <input type="hidden" id="editRowId">
-            
-            <div class="input-group">
-                <label>Summa (UZS):</label>
-                <input type="number" id="editAmountUZS" placeholder="So'mda">
-            </div>
-
-            <div class="input-group">
-                <label>Summa (USD):</label>
-                <input type="number" id="editAmountUSD" placeholder="Dollarda">
-            </div>
-
-            <div class="input-group">
-                <label>Kurs (1$ uchun):</label>
-                <input type="number" id="editRate" placeholder="Kursni kiriting">
-            </div>
-
-            <div class="input-group">
-                <label>Izoh:</label>
-                <textarea id="editComment" rows="3" placeholder="Izohni o'zgartirish..."></textarea>
-            </div>
-
-            <div class="modal-actions">
-                <button type="submit" class="btn-main">💾 Saqlash</button>
-                <button type="button" class="btn-main bg-red" onclick="closeModal()">❌ Bekor qilish</button>
-            </div>
-        </form>
-    </div>
-</div>
-
+    <!-- ========== PASTKI MENYU ========== -->
     <div class="bottom-nav">
-        <div class="nav-item active" id="nav-report" onclick="switchTab('reportTab', 'nav-report')"><span>📊</span><span>Hisobot</span></div>
-        <div class="nav-fab-container"><div class="nav-fab" id="nav-add" onclick="switchTab('addTab', 'nav-add')">➕</div></div>
-        <div class="nav-item hidden" id="nav-admin" onclick="switchTab('adminTab', 'nav-admin')"><span>👑</span><span>Admin</span></div>
+        <div class="nav-item active" id="nav-report" onclick="switchTab('reportTab', 'nav-report')">
+            <span>📊</span><span>Hisobot</span>
+        </div>
+        <div class="nav-fab-container">
+            <div class="nav-fab" id="nav-add" onclick="switchTab('addTab', 'nav-add')">➕</div>
+        </div>
+        <div class="nav-item hidden" id="nav-admin" onclick="switchTab('adminTab', 'nav-admin')">
+            <span>👑</span><span>Admin</span>
+        </div>
     </div>
 
+    <!-- ========== SKRIPTLAR (tartib muhim!) ========== -->
     <script src="config.js"></script>
-<script src="ui.js"></script>
-<script src="employee.js"></script>
-<script src="admin.js"></script>
-<script src="export.js"></script>
-<script src="actions.js"></script>
-<script src="roles.js"></script>
+    <script src="ui.js"></script>
+    <script src="employee.js"></script>
+    <script src="admin.js"></script>
+    <script src="export.js"></script>
+    <script src="actions.js"></script>
+    <script src="roles.js"></script>
 </body>
 </html>
