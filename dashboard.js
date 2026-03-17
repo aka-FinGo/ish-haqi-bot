@@ -165,20 +165,20 @@ function renderUserDashboard(el) {
     el.innerHTML = `
     <div class="dash-role-badge user">👤 Mening Statistikam</div>
     <div class="dash-stats-grid">
-        ${sCard('💰','Jami Xarajat',fmt(total)+' UZS','So\'mda hisoblaganda','#10B981')}
-        ${sCard('💵','Dollar Xarajat','$'+usd.toLocaleString(),'Dollar formatida','#F59E0B')}
+        ${sCard('💰','Jami hisob',fmt(total)+' UZS','So\'mda hisoblaganda','#10B981')}
+        ${sCard('💵','Dollar Hisob','$'+usd.toLocaleString(),'Dollar formatida','#F59E0B')}
         ${sCard('📅','Oylik O\'rtacha',fmt(avg)+' UZS','Hisoblangan o\'rtacha','#3B82F6')}
-        ${sCard('🏆','Eng Faol Oy',peakMonth(rec),'Eng ko\'p xarajat','#8B5CF6')}
+        ${sCard('🏆','Eng Faol Oy',peakMonth(rec),'Eng ko\'p hisob','#8B5CF6')}
         ${sCard('📋','Jami Amallar',rec.length+' ta','Kiritilgan amallar','#EC4899')}
         ${sCard('💱','Dollar Amallar',usdCnt+' ta','USD formatida','#14B8A6')}
     </div>
     ${cCard('📊 Oxirgi 6 Oy','chartU_monthly',200)}
     ${cCard('🥧 Valyuta Taqsimoti','chartU_donut',230)}
-    ${bycat.length ? cCard('📋 Xarajat Toifalari','chartU_cat',Math.max(160,bycat.length*44)) : ''}
+    ${bycat.length ? cCard('📋 Pul Toifalari','chartU_cat',Math.max(160,bycat.length*44)) : ''}
     ${cCard('📈 Oylik Amallar Soni','chartU_txCount',160)}`;
 
     mkBar('chartU_monthly', months6.map(m=>m.label),
-        [{label:'Xarajat',data:sumByMonthKey(rec,months6),
+        [{label:'Hisob',data:sumByMonthKey(rec,months6),
           backgroundColor:months6.map((_,i)=>i===months6.length-1?'#10B981':'#BFDBFE'),borderRadius:8,borderSkipped:false}]);
 
     const pu = pureUZS(rec), cu = convUZS(rec);
@@ -208,7 +208,7 @@ function renderAdminDashboard(el) {
         ${sCard('🏆','Eng Faol Oy',peakMonth(my)||'—','','#8B5CF6')}
         ${sCard('📋','Jami Amallarim',my.length+' ta','','#EC4899')}
     </div>
-    ${cCard('📊 Mening 6-Oylik Xarajatim','chartA_myMonthly',200)}
+    ${cCard('📊 Mening 6-Oylik hisobim','chartA_myMonthly',200)}
     ${cCard('🥧 Valyuta Taqsimotim','chartA_myDonut',220)}
 
     ${showCompany ? `
@@ -221,7 +221,7 @@ function renderAdminDashboard(el) {
     ` : ''}`;
 
     mkBar('chartA_myMonthly', months6.map(m=>m.label),
-        [{label:'Xarajat',data:sumByMonthKey(my,months6),backgroundColor:'#10B981',borderRadius:8,borderSkipped:false}]);
+        [{label:'Ish haqi',data:sumByMonthKey(my,months6),backgroundColor:'#10B981',borderRadius:8,borderSkipped:false}]);
     const pu=pureUZS(my),cu=convUZS(my);
     if (pu>0||cu>0) mkDonut('chartA_myDonut',["So'm","Dollar"],[pu,cu],['#10B981','#F59E0B']);
 
@@ -266,7 +266,7 @@ function renderDirektorDashboard(el) {
     <div class="dash-role-badge boss">🎯 Direktor — To'liq Ko'rinish</div>
     <div class="dash-stats-grid">
         ${sCard('💰','Jami Budjet',fmt(sumUZS(all))+' UZS','','#10B981')}
-        ${sCard('💵','Dollar Xarajat','$'+sumUSD(all).toLocaleString(),'','#F59E0B')}
+        ${sCard('💵','Dollar Ish haqi','$'+sumUSD(all).toLocaleString(),'','#F59E0B')}
         ${sCard('👥','Xodimlar',new Set(all.map(r=>r.name)).size+' nafar','','#3B82F6')}
         ${sCard('📋','Amallar',all.length+' ta','','#8B5CF6')}
         ${sCard('📅','Oylik O\'rtacha',fmt(avgMonthly(all))+' UZS','','#EC4899')}
@@ -313,7 +313,7 @@ function renderSuperAdminDashboard(el) {
 
     ${secTitle('🏢 Kompaniya Statistikasi')}
     <div class="dash-stats-grid">
-        ${sCard('💰','Jami Budjet',fmt(sumUZS(all))+' UZS','','#10B981')}
+        ${sCard('💰','Jami Budjet UZS/USD',fmt(sumUZS(all))+' UZS','','#10B981')}
         ${sCard('💵','Dollar','$'+sumUSD(all).toLocaleString(),'','#F59E0B')}
         ${sCard('👥','Xodimlar',new Set(all.map(r=>r.name)).size+' nafar','','#3B82F6')}
         ${sCard('📋','Amallar',all.length+' ta','','#8B5CF6')}
@@ -327,12 +327,12 @@ function renderSuperAdminDashboard(el) {
 
     ${secTitle('👤 Mening Statistikam')}
     <div class="dash-stats-grid">
-        ${sCard('💰','Mening Xarajatim',fmt(sumUZS(my))+' UZS','','#10B981')}
+        ${sCard('💰','Mening Hisobim UZS/USD',fmt(sumUZS(my))+' UZS','','#10B981')}
         ${sCard('📅','Oylik O\'rtacha',fmt(avgMonthly(my))+' UZS','','#3B82F6')}
         ${sCard('🏆','Eng Faol Oy',peakMonth(my)||'—','','#8B5CF6')}
         ${sCard('📋','Amallarim',my.length+' ta','','#EC4899')}
     </div>
-    ${cCard('📊 Mening Oylik Xarajatim','chartS_my',190)}`;
+    ${cCard('📊 Mening Oylik Ish haqim','chartS_my',190)}`;
 
     mkLine('chartS_trend',months12.map(m=>m.label),
         [{label:'Jami',data:sumByMonthKey(all,months12),borderColor:'#10B981',
