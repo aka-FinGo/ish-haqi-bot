@@ -203,7 +203,7 @@ function renderAdminDashboard(el) {
 
     ${secTitle('👤 Mening Statistikam')}
     <div class="dash-stats-grid">
-        ${sCard('💰','Jami olgan pulim',fmt(sumUZS(my))+' UZS','','#10B981')}
+        ${sCard('💰','Jami olgan pulim UZS/USD',fmt(sumUZS(my))+' UZS','','#10B981')}
         ${sCard('📅','Oylik O\'rtacha',fmt(avgMonthly(my))+' UZS','','#3B82F6')}
         ${sCard('🏆','Eng Faol Oy',peakMonth(my)||'—','','#8B5CF6')}
         ${sCard('📋','Jami Amallarim',my.length+' ta','','#EC4899')}
@@ -214,7 +214,7 @@ function renderAdminDashboard(el) {
     ${showCompany ? `
     ${secTitle('🏢 Kompaniya (Sizga ruxsat berilgan)')}
     <div class="dash-stats-grid">
-        ${sCard('💰','Jami Budjet',fmt(sumUZS(all))+' UZS','','#10B981')}
+        ${sCard('💰','Jami Budjet UZS/USD',fmt(sumUZS(all))+' UZS','','#10B981')}
         ${sCard('👥','Xodimlar',new Set(all.map(r=>r.name)).size+' nafar','','#3B82F6')}
     </div>
     ${cCard('📈 Kompaniya Trendi','chartA_allTrend',200)}
