@@ -1021,42 +1021,105 @@ textarea { resize: vertical; min-height: 80px; }
 /* ============================================================
    PERMISSION SYSTEM
    ============================================================ */
+/* ---- Permissions collapsible block ---- */
+.perm-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-xs);
+    padding: 9px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: var(--font);
+    color: var(--text-muted);
+    cursor: pointer;
+    margin-top: 8px;
+    transition: border-color .2s, color .2s;
+}
+.perm-toggle-btn:hover { border-color: var(--green); color: var(--green); }
+.perm-toggle-btn .perm-arrow {
+    font-size: 11px;
+    transition: transform .25s;
+    display: inline-block;
+}
+.perm-toggle-btn.open .perm-arrow { transform: rotate(180deg); }
+
+.perm-body {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height .3s ease, opacity .25s ease;
+    opacity: 0;
+}
+.perm-body.open {
+    max-height: 400px;
+    opacity: 1;
+}
+
 .perm-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-bottom: 12px;
+    gap: 6px;
+    margin: 10px 0 10px;
     background: var(--bg);
     border-radius: var(--radius-sm);
-    padding: 12px;
+    padding: 10px;
 }
 
 .perm-label {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 13px;
+    gap: 10px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--navy);
     cursor: pointer;
-    padding: 6px 8px;
+    padding: 10px 10px;
     border-radius: 8px;
-    transition: background .15s;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    transition: border-color .15s, background .15s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
 }
 
-.perm-label:hover { background: var(--border); }
+.perm-label:active { background: #ECFDF5; border-color: var(--green); }
+.perm-label.checked { background: #ECFDF5; border-color: var(--green); color: #065F46; }
 
+/* Custom checkbox — iOS/Android da ham ko'rinadi */
 .perm-label input[type=checkbox] {
-    width: 16px; height: 16px;
-    accent-color: var(--green);
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border);
+    border-radius: 5px;
+    background: #fff;
     cursor: pointer;
-    margin: 0;
     flex-shrink: 0;
+    position: relative;
+    transition: background .15s, border-color .15s;
+}
+.perm-label input[type=checkbox]:checked {
+    background: var(--green);
+    border-color: var(--green);
+}
+.perm-label input[type=checkbox]:checked::after {
+    content: '';
+    position: absolute;
+    left: 4px; top: 1px;
+    width: 6px; height: 10px;
+    border: 2px solid #fff;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg);
 }
 
 .perm-save-btn {
     width: 100%;
-    padding: 10px;
+    padding: 11px;
     background: linear-gradient(135deg,var(--green),var(--green-dark));
     color: #fff;
     border: none;
@@ -1066,6 +1129,7 @@ textarea { resize: vertical; min-height: 80px; }
     font-family: var(--font);
     cursor: pointer;
     box-shadow: 0 4px 12px rgba(16,185,129,0.3);
+    margin-top: 0;
 }
 
 /* Role item vertical */
