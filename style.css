@@ -1017,3 +1017,89 @@ textarea { resize: vertical; min-height: 80px; }
     visibility: hidden;
     pointer-events: none;
 }
+
+/* ============================================================
+   PERMISSION SYSTEM
+   ============================================================ */
+.perm-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+}
+
+.perm-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--navy);
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 8px;
+    transition: background .15s;
+}
+
+.perm-label:hover { background: var(--border); }
+
+.perm-label input[type=checkbox] {
+    width: 16px; height: 16px;
+    accent-color: var(--green);
+    cursor: pointer;
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.perm-save-btn {
+    width: 100%;
+    padding: 10px;
+    background: linear-gradient(135deg,var(--green),var(--green-dark));
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-xs);
+    font-weight: 700;
+    font-size: 13px;
+    font-family: var(--font);
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(16,185,129,0.3);
+}
+
+/* Role item vertical */
+.role-item {
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
+}
+
+/* Toast */
+.toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--navy);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 24px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--font);
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity .3s, transform .3s;
+    white-space: nowrap;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.toast-err { background: var(--red); }
