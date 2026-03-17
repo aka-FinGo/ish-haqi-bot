@@ -203,7 +203,7 @@ function renderAdminDashboard(el) {
 
     ${secTitle('👤 Mening Statistikam')}
     <div class="dash-stats-grid">
-        ${sCard('💰','Mening Xarajatim',fmt(sumUZS(my))+' UZS','','#10B981')}
+        ${sCard('💰','Jami olgan pulim',fmt(sumUZS(my))+' UZS','','#10B981')}
         ${sCard('📅','Oylik O\'rtacha',fmt(avgMonthly(my))+' UZS','','#3B82F6')}
         ${sCard('🏆','Eng Faol Oy',peakMonth(my)||'—','','#8B5CF6')}
         ${sCard('📋','Jami Amallarim',my.length+' ta','','#EC4899')}
