@@ -139,11 +139,7 @@ async function exportToBot(dataList, fileNameBase) {
         // ============================================================
         // BOTGA YUBORISH
         // ============================================================
-        const res    = await fetch(API_URL, {
-            method: "POST",
-            body:   JSON.stringify({ action: "export_to_bot", telegramId, base64, fileName })
-        });
-        const result = await res.json();
+        const result = await apiRequest({ action: "export_to_bot", base64, fileName }, { timeoutMs: 30000 });
         tg.MainButton.hide();
 
         if (result.success) {
@@ -164,11 +160,19 @@ function exportMyExcel() {
 }
 
 // Admin paneldan eksport — agar bitta hodim tanlangan bo'lsa, ism bilan
-function exportAdminExcel() {
+async function exportAdminExcel() {
     const empSelect = document.getElementById('filterEmployee');
     const empVal    = empSelect ? empSelect.value : 'all';
     const baseName  = empVal !== 'all'
         ? "Hisobot_" + empVal
         : "Kompaniya_Umumiy_Hisoboti";
-    exportToBot(filteredData, baseName);
+    try {
+        let exportData = filteredData;
+        if (typeof fetchAdminFilteredDataForExport === 'function') {
+            exportData = await fetchAdminFilteredDataForExport();
+        }
+        exportToBot(exportData, baseName);
+    } catch (err) {
+        showToastMsg('❌ ' + (err.message || 'Eksport xatosi'), true);
+    }
 }

@@ -1,7 +1,7 @@
 // ============================================================
 // config.js — Frontend sozlamalari
 // ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbxvwRMY-t-9_0S0A7zl8DXSMpCCj35D_kv8iREYDTs5TAMbKTVEs5ol2mpeLaedomA5Og/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwXgZ13q3qzNdtj6iKd5LKvYapN-raKMDB9EAVkA4dwAdjK2hGkQVz202zUbfbKeJAkoA/exec";
 
 const tg = window.Telegram.WebApp;
 tg.expand();
@@ -10,9 +10,12 @@ tg.setHeaderColor && tg.setHeaderColor('#0F172A');
 const user         = tg.initDataUnsafe?.user;
 const employeeName = user ? `${user.first_name} ${user.last_name || ''}`.trim() : "Test User";
 const telegramId   = user ? String(user.id) : "0";
+const tgInitData   = typeof tg.initData === 'string' ? tg.initData : '';
+const APP_VERSION  = document.querySelector('meta[name="app-version"]')?.content || 'dev';
 
 // Global state
 let globalAdminData   = [];
+let globalAdminDataIsPartial = false;
 let filteredData      = [];
 let myFullRecords     = [];
 let myFilteredRecords = [];
@@ -116,5 +119,60 @@ function getTodayDdMmYyyy(now = new Date()) {
     year,
     display: `${day}/${month}/${year}`,
     iso: `${year}-${month}-${day}`
+  };
+}
+
+async function apiRequest(payload, opts) {
+  const options = opts || {};
+  const timeoutMs = Number(options.timeoutMs) || 25000;
+
+  const body = Object.assign({}, payload || {});
+  if (!body.telegramId) body.telegramId = telegramId;
+  if (!body.initData && tgInitData) body.initData = tgInitData;
+
+  const canAbort = typeof AbortController !== 'undefined';
+  const controller = canAbort ? new AbortController() : null;
+  let timeoutId = null;
+
+  if (controller) {
+    timeoutId = setTimeout(function () {
+      controller.abort();
+    }, timeoutMs);
+  }
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      // IMPORTANT:
+      // Leave Content-Type unset to avoid CORS preflight issues in Telegram WebView.
+      body: JSON.stringify(body),
+      signal: controller ? controller.signal : undefined
+    });
+
+    if (!res.ok) {
+      throw new Error('HTTP ' + res.status);
+    }
+
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error('Server javobi noto\'g\'ri formatda');
+    }
+  } catch (err) {
+    if (err && err.name === 'AbortError') {
+      throw new Error("So'rov vaqti tugadi");
+    }
+    throw err;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    parseDateParts,
+    getDateMonthYear,
+    getTodayDdMmYyyy
   };
 }
