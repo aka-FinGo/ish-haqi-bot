@@ -285,6 +285,13 @@ function normalizeFilterText_(value) {
   return String(value || '').toLowerCase().trim();
 }
 
+function normalizeReason_(value) {
+  var reason = String(value || '').trim();
+  if (!reason) return '';
+  if (reason.length > 300) reason = reason.slice(0, 300);
+  return reason;
+}
+
 function getConfigSuperAdminId_() {
   return String((CONFIG && CONFIG.SUPER_ADMIN_ID) || '').trim();
 }
@@ -373,7 +380,7 @@ function roleDefaults_(roleKey) {
   if (role === 'ADMIN') {
     return {
       canAdd: true,
-      permissions: { canViewAll:false, canEdit:false, canDelete:false, canExport:false, canViewDash:false }
+      permissions: { canViewAll:true, canEdit:false, canDelete:false, canExport:false, canViewDash:false }
     };
   }
   return {
@@ -422,9 +429,6 @@ function buildModelFromRoleAndOverrides_(roleKey, overrides) {
     perms.canDelete = true;
     perms.canExport = true;
     perms.canViewDash = true;
-  } else if (role === 'DIRECTOR') {
-    perms.canEdit = false;
-    perms.canDelete = false;
   }
 
   return {
@@ -524,6 +528,62 @@ function getEmployee(tgId) {
   return null; // Ro'yxatda yo'q
 }
 
+function buildPendingUsername_(data, tgId) {
+  var d = data || {};
+  var first = String(d.firstName || '').trim();
+  var last = String(d.lastName || '').trim();
+  var uname = String(d.tgUsername || '').trim();
+
+  var full = (first + ' ' + last).trim();
+  if (full) return full;
+  if (uname) return '@' + uname;
+  return 'Yangi foydalanuvchi ' + String(tgId || '');
+}
+
+function notifyAccessRequestToAdmin_(tgId, displayName, source) {
+  try {
+    var msg = "🆕 Yangi foydalanuvchi ro'yxatga qo'shildi\n" +
+              "👤 " + String(displayName || '—') + "\n" +
+              "🆔 " + String(tgId || '—') + "\n" +
+              "📍 Manba: " + String(source || 'init') + "\n" +
+              "ℹ️ Ruxsat berish uchun Admin paneldan sozlang.";
+    sendSystemAlert(msg);
+  } catch (ignore) {}
+}
+
+function autoRegisterPendingUserIfMissing_(tgId, data, source) {
+  var targetId = String(tgId || '').trim();
+  if (!targetId) return { success:false, created:false, error:'tgId topilmadi' };
+  if (isConfigSuperAdminId_(targetId)) return { success:true, created:false };
+
+  var displayName = buildPendingUsername_(data, targetId);
+  var created = false;
+
+  var writeRes = withWriteLock_(function () {
+    resetEmployeeCache_();
+    var existing = getEmployee(targetId);
+    if (existing) return { success:true, created:false };
+
+    var empSheet = getSheets().empSheet;
+    empSheet.appendRow([
+      targetId,
+      displayName,
+      0, 0, 0, 0, 0, 0, 0, 0, 0,
+      'EMPLOYEE',
+      0, '', '', '', '', ''
+    ]);
+    created = true;
+    return { success:true, created:true };
+  });
+
+  if (!writeRes.success) return writeRes;
+  if (created) {
+    resetEmployeeCache_();
+    notifyAccessRequestToAdmin_(targetId, displayName, source || 'init');
+  }
+  return { success:true, created:created };
+}
+
 // ---- Rollarni aniqlash ----
 function checkUserRoles(tgId) {
   var emp = getEmployee(tgId);
@@ -532,6 +592,7 @@ function checkUserRoles(tgId) {
     role: "User", roleKey: "EMPLOYEE", username: "",
     isAdmin: false, isBoss: false,
     isDirector: false, isSuperAdmin: false,
+    inList: false,
     canAdd: true, // + tugmasi hammaga ko'rinadi
     permissions: {
       canViewAll:false, canEdit:false,
@@ -547,6 +608,7 @@ function checkUserRoles(tgId) {
       auth.isSuperAdmin = true;
       auth.isAdmin = true;
       auth.isBoss = true;
+      auth.inList = true;
       auth.canAdd = true;
       auth.permissions = {
         canViewAll:true, canEdit:true,
@@ -559,6 +621,7 @@ function checkUserRoles(tgId) {
     return auth;
   }
 
+  auth.inList = true;
   auth.username   = emp.username;
   auth.canAdd     = emp.canAdd;
   auth.role       = emp.role;
@@ -644,7 +707,16 @@ function isValidYmd_(y, m, d) {
   return dt.getFullYear() === y && (dt.getMonth() + 1) === m && dt.getDate() === d;
 }
 
-function initUser(tgId, auth) {
+function initUser(tgId, auth, data) {
+  var autoAdded = false;
+  if (!auth.inList && !auth.isSuperAdmin) {
+    var autoReg = autoRegisterPendingUserIfMissing_(tgId, data || {}, 'init');
+    if (autoReg && autoReg.success && autoReg.created) {
+      autoAdded = true;
+      auth = checkUserRoles(tgId);
+    }
+  }
+
   var dataSheet   = getSheets().dataSheet;
   var values      = dataSheet.getDataRange().getValues();
   var usernameMap = buildUsernameMap();   // Hodimlar sheet → username
@@ -679,7 +751,9 @@ function initUser(tgId, auth) {
     isDirector:   auth.isDirector,
     isDirektor:   auth.isDirector,
     permissions:  auth.permissions,
-    inList:       emp !== null   // Ro'yxatda bormi
+    inList:       emp !== null,   // Ro'yxatda bormi
+    autoAdded:    autoAdded,
+    adminContactId: getConfigSuperAdminId_()
   };
 }
 
@@ -836,6 +910,9 @@ function adminGetAll(options) {
 
 function adminEditRecord(data, actorTgId) {
   return withWriteLock_(function () {
+    var reason = normalizeReason_(data.reason);
+    if (!reason) return { success:false, error:"Tahrirlash sababi kiritilishi shart" };
+
     var dataSheet = getSheets().dataSheet;
     var row = parseInt(data.rowId, 10);
     if (!row || row <= 1 || row > dataSheet.getLastRow()) {
@@ -853,13 +930,16 @@ function adminEditRecord(data, actorTgId) {
     dataSheet.getRange(row, 6).setValue(data.comment           || '');
 
     var after = dataSheet.getRange(row, 1, 1, 8).getValues()[0];
-    addAuditLog_(actorTgId, 'admin_edit', row, rowToRecordForAudit_(before), rowToRecordForAudit_(after), 'updated');
+    addAuditLog_(actorTgId, 'admin_edit', row, rowToRecordForAudit_(before), rowToRecordForAudit_(after), 'updated: ' + reason);
     return { success: true };
   });
 }
 
-function adminDeleteRecord(rowId, actorTgId) {
+function adminDeleteRecord(rowId, actorTgId, reasonRaw) {
   return withWriteLock_(function () {
+    var reason = normalizeReason_(reasonRaw);
+    if (!reason) return { success:false, error:"O'chirish sababi kiritilishi shart" };
+
     var dataSheet = getSheets().dataSheet;
     var row = parseInt(rowId, 10);
     if (!row || row <= 1 || row > dataSheet.getLastRow()) {
@@ -873,8 +953,64 @@ function adminDeleteRecord(rowId, actorTgId) {
 
     dataSheet.getRange(row, DATA_COL.IS_DELETED + 1).setValue(1);
     var after = dataSheet.getRange(row, 1, 1, 8).getValues()[0];
-    addAuditLog_(actorTgId, 'admin_delete', row, rowToRecordForAudit_(before), rowToRecordForAudit_(after), 'soft-delete');
+    addAuditLog_(actorTgId, 'admin_delete', row, rowToRecordForAudit_(before), rowToRecordForAudit_(after), 'soft-delete: ' + reason);
     return { success: true };
+  });
+}
+
+function selfEditRecord(data, actorTgId) {
+  return withWriteLock_(function () {
+    var reason = normalizeReason_(data.reason);
+    if (!reason) return { success:false, error:"Tahrirlash sababi kiritilishi shart" };
+
+    var dataSheet = getSheets().dataSheet;
+    var row = parseInt(data.rowId, 10);
+    if (!row || row <= 1 || row > dataSheet.getLastRow()) {
+      return { success:false, error:'Qator topilmadi' };
+    }
+
+    var before = dataSheet.getRange(row, 1, 1, 8).getValues()[0];
+    if (isDeletedRow_(before)) return { success:false, error:"Bu yozuv o'chirilgan" };
+
+    var ownerTgId = String(before[DATA_COL.TG_ID] || '').trim();
+    if (ownerTgId !== String(actorTgId || '').trim()) {
+      return { success:false, error:"Faqat o'zingizning yozuvingizni tahrirlaysiz" };
+    }
+
+    dataSheet.getRange(row, 3).setValue(Number(data.amountUZS) || 0);
+    dataSheet.getRange(row, 4).setValue(Number(data.amountUSD) || 0);
+    dataSheet.getRange(row, 5).setValue(Number(data.rate)      || 0);
+    dataSheet.getRange(row, 6).setValue(data.comment           || '');
+
+    var after = dataSheet.getRange(row, 1, 1, 8).getValues()[0];
+    addAuditLog_(actorTgId, 'self_edit', row, rowToRecordForAudit_(before), rowToRecordForAudit_(after), 'updated: ' + reason);
+    return { success:true };
+  });
+}
+
+function selfDeleteRecord(rowId, actorTgId, reasonRaw) {
+  return withWriteLock_(function () {
+    var reason = normalizeReason_(reasonRaw);
+    if (!reason) return { success:false, error:"O'chirish sababi kiritilishi shart" };
+
+    var dataSheet = getSheets().dataSheet;
+    var row = parseInt(rowId, 10);
+    if (!row || row <= 1 || row > dataSheet.getLastRow()) {
+      return { success:false, error:'Qator topilmadi' };
+    }
+
+    var before = dataSheet.getRange(row, 1, 1, 8).getValues()[0];
+    if (isDeletedRow_(before)) return { success:true };
+
+    var ownerTgId = String(before[DATA_COL.TG_ID] || '').trim();
+    if (ownerTgId !== String(actorTgId || '').trim()) {
+      return { success:false, error:"Faqat o'zingizning yozuvingizni o'chirasiz" };
+    }
+
+    dataSheet.getRange(row, DATA_COL.IS_DELETED + 1).setValue(1);
+    var after = dataSheet.getRange(row, 1, 1, 8).getValues()[0];
+    addAuditLog_(actorTgId, 'self_delete', row, rowToRecordForAudit_(before), rowToRecordForAudit_(after), 'soft-delete: ' + reason);
+    return { success:true };
   });
 }
 
@@ -941,6 +1077,174 @@ function getHodimlar() {
     });
   }
   return { success: true, data: result };
+}
+
+function listNotifyUsers() {
+  var rows = getEmployeeRows_();
+  var out = [];
+  for (var i = 1; i < rows.length; i++) {
+    var tgId = String(rows[i][COL.TG_ID] || '').trim();
+    if (!tgId) continue;
+    if (isConfigSuperAdminId_(tgId)) continue;
+
+    var access = resolveEmployeeAccessFromRow_(rows[i]);
+    out.push({
+      tgId: tgId,
+      username: String(rows[i][COL.USERNAME] || ''),
+      role: access.roleKey,
+      canAdd: access.canAdd ? 1 : 0
+    });
+  }
+
+  out.sort(function (a, b) {
+    var an = String(a.username || '').toLowerCase();
+    var bn = String(b.username || '').toLowerCase();
+    if (an < bn) return -1;
+    if (an > bn) return 1;
+    return 0;
+  });
+  return { success:true, data: out };
+}
+
+function getLatestActionDatesByTgId_() {
+  var dataSheet = getSheets().dataSheet;
+  var values = dataSheet.getDataRange().getValues();
+  var map = {};
+  for (var i = 1; i < values.length; i++) {
+    var row = values[i];
+    if (isDeletedRow_(row)) continue;
+    var tgId = String(row[DATA_COL.TG_ID] || '').trim();
+    if (!tgId) continue;
+
+    var dateMeta = parseDateInput_(row[DATA_COL.DATE], null);
+    if (!dateMeta || !dateMeta.dateObj) continue;
+
+    var dt = dateMeta.dateObj;
+    if (!map[tgId] || map[tgId].getTime() < dt.getTime()) {
+      map[tgId] = dt;
+    }
+  }
+  return map;
+}
+
+function getInactiveUsers(days) {
+  var threshold = toPositiveInt_(days, Number((CONFIG && CONFIG.DEFAULT_INACTIVE_DAYS) || 14), 1, 365);
+  var notifyUsers = listNotifyUsers();
+  if (!notifyUsers.success) return notifyUsers;
+
+  var latestMap = getLatestActionDatesByTgId_();
+  var now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  var out = [];
+  for (var i = 0; i < notifyUsers.data.length; i++) {
+    var user = notifyUsers.data[i];
+    if (Number(user.canAdd) !== 1) continue;
+
+    var lastDate = latestMap[user.tgId] || null;
+    var inactiveDays = lastDate
+      ? Math.floor((now.getTime() - new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate()).getTime()) / 86400000)
+      : 99999;
+
+    if (!lastDate || inactiveDays >= threshold) {
+      out.push({
+        tgId: user.tgId,
+        username: user.username || '',
+        role: user.role || '',
+        lastActionDate: lastDate ? formatDateCell(lastDate) : '',
+        inactiveDays: inactiveDays
+      });
+    }
+  }
+
+  out.sort(function (a, b) { return Number(b.inactiveDays) - Number(a.inactiveDays); });
+  return { success:true, days:threshold, count:out.length, data:out };
+}
+
+function sanitizeReminderText_(text) {
+  var t = String(text || '').trim();
+  if (!t) return '';
+  if (t.length > 3000) return '__TOO_LONG__';
+  return t;
+}
+
+function getReminderTextSetting(actorTgId) {
+  var text = getReminderTemplate_();
+  return { success:true, text:String(text || '') };
+}
+
+function setReminderTextSetting(text, actorTgId) {
+  var sanitized = sanitizeReminderText_(text);
+  if (!sanitized) return { success:false, error:'Matn bo\'sh bo\'lmasin' };
+  if (sanitized === '__TOO_LONG__') return { success:false, error:'Matn juda uzun (max 3000)' };
+
+  var saved = setReminderTemplate_(sanitized);
+  addAuditLog_(actorTgId, 'set_reminder_text', '', null, { textLength: String(saved || '').length }, 'updated');
+  return { success:true, text:String(saved || '') };
+}
+
+function sendUserReminder(tgId, actorTgId, reminderText) {
+  var targetId = String(tgId || '').trim();
+  if (!targetId) return { success:false, error:'Foydalanuvchi tanlanmagan' };
+  if (isConfigSuperAdminId_(targetId)) return { success:false, error:'Config SuperAdmin ga xabar yuborish cheklangan' };
+  var customText = sanitizeReminderText_(reminderText);
+  if (customText === '__TOO_LONG__') return { success:false, error:'Matn juda uzun (max 3000)' };
+
+  var emp = getEmployee(targetId);
+  var username = emp ? emp.username : '';
+  var sendRes = sendSalaryReminderToUser(targetId, username, customText);
+  if (!sendRes || !sendRes.ok) {
+    addAuditLog_(actorTgId, 'send_user_reminder', '', null, { tgId: targetId, ok:false }, String((sendRes && sendRes.description) || 'failed'));
+    return { success:false, error: String((sendRes && sendRes.description) || 'Xabar yuborilmadi') };
+  }
+
+  addAuditLog_(actorTgId, 'send_user_reminder', '', null, { tgId: targetId, ok:true }, 'manual');
+  return { success:true };
+}
+
+function sendInactiveReminders(days, actorTgId, reminderText) {
+  var inactive = getInactiveUsers(days);
+  if (!inactive.success) return inactive;
+  var customText = sanitizeReminderText_(reminderText);
+  if (customText === '__TOO_LONG__') return { success:false, error:'Matn juda uzun (max 3000)' };
+
+  var sent = 0;
+  var failed = 0;
+  var failedUsers = [];
+
+  for (var i = 0; i < inactive.data.length; i++) {
+    var u = inactive.data[i];
+    var sendRes = sendSalaryReminderToUser(u.tgId, u.username, customText);
+    if (sendRes && sendRes.ok) {
+      sent++;
+    } else {
+      failed++;
+      if (failedUsers.length < 10) {
+        failedUsers.push({
+          tgId: u.tgId,
+          username: u.username || '',
+          error: String((sendRes && sendRes.description) || 'failed')
+        });
+      }
+    }
+    Utilities.sleep(80);
+  }
+
+  addAuditLog_(actorTgId, 'send_inactive_reminders', '', null, {
+    days: inactive.days,
+    total: inactive.count,
+    sent: sent,
+    failed: failed
+  }, 'bulk');
+
+  return {
+    success:true,
+    days: inactive.days,
+    total: inactive.count,
+    sent: sent,
+    failed: failed,
+    failedUsers: failedUsers
+  };
 }
 
 function addHodim(data) {

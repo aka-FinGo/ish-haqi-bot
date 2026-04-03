@@ -1,7 +1,16 @@
 // ================= TAHRIRLASH VA O'CHIRISH =================
+let currentEditScope = 'admin';
+
+function findRecordByRowId(rowId) {
+    const rid = String(rowId);
+    return globalAdminData.find(x => String(x.rowId) === rid) ||
+           myFullRecords.find(x => String(x.rowId) === rid) ||
+           null;
+}
 
 function openEdit(rowId) {
-    const r = globalAdminData.find(x => String(x.rowId) === String(rowId));
+    currentEditScope = 'admin';
+    const r = findRecordByRowId(rowId);
     if (!r) return;
 
     document.getElementById('editRowId').value     = r.rowId;
@@ -18,6 +27,27 @@ function openEdit(rowId) {
     // FIX 4: UZS/USD holati ko'rinishi
     updateEditCurrencyView();
 
+    document.getElementById('editModal').classList.remove('hidden');
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+}
+
+function openSelfEdit(rowId) {
+    currentEditScope = 'self';
+    const r = findRecordByRowId(rowId);
+    if (!r) return;
+
+    document.getElementById('editRowId').value     = r.rowId;
+    document.getElementById('editAmountUZS').value = r.amountUZS || '';
+    document.getElementById('editAmountUSD').value = r.amountUSD || '';
+    document.getElementById('editRate').value      = r.rate      || '';
+    document.getElementById('editComment').value   = r.comment   || '';
+
+    const headerName = document.getElementById('editHeaderName');
+    const headerDate = document.getElementById('editHeaderDate');
+    if (headerName) headerName.innerText = r.name || '—';
+    if (headerDate) headerDate.innerText = r.date || '—';
+
+    updateEditCurrencyView();
     document.getElementById('editModal').classList.remove('hidden');
     if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
 }
@@ -57,11 +87,22 @@ function closeModal() {
     document.getElementById('editModal').classList.add('hidden');
 }
 
+function askActionReason(titleText) {
+    const reason = prompt(`${titleText} sababini kiriting:`);
+    if (!reason || !String(reason).trim()) {
+        showToastMsg('❌ Sabab kiritilishi shart', true);
+        return '';
+    }
+    return String(reason).trim();
+}
+
 async function saveEdit() {
     const rowId     = document.getElementById('editRowId').value;
     const amountUSD = parseFloat(document.getElementById('editAmountUSD').value) || 0;
     const rate      = parseFloat(document.getElementById('editRate').value)      || 0;
     const comment   = document.getElementById('editComment').value;
+    const reason    = askActionReason("Tahrirlash");
+    if (!reason) return;
 
     // FIX 4: UZS ni qayta hisoblash
     let amountUZS;
@@ -72,14 +113,53 @@ async function saveEdit() {
     }
 
     closeModal();
+    if (currentEditScope === 'admin') {
+        document.getElementById('adminList').innerHTML = `
+            <div class="skeleton skeleton-item"></div>
+            <div class="skeleton skeleton-item"></div>`;
+    }
+
+    try {
+        const action = currentEditScope === 'self' ? 'self_edit' : 'admin_edit';
+        const data = await apiRequest({ action, rowId, amountUZS, amountUSD, rate, comment, reason });
+        if (!data.success) {
+            showToastMsg('❌ ' + (data.error || 'Saqlashda xato'), true);
+            return;
+        }
+        if (currentEditScope === 'self') {
+            const rec = findRecordByRowId(rowId);
+            if (rec) {
+                rec.amountUZS = Number(amountUZS) || 0;
+                rec.amountUSD = Number(amountUSD) || 0;
+                rec.rate = Number(rate) || 0;
+                rec.comment = comment || '';
+            }
+            applyMyFilters();
+            showToastMsg('✅ Saqlandi!');
+            return;
+        }
+    } catch {
+        showToastMsg('❌ Server xatosi', true);
+    } finally {
+        if (currentEditScope === 'admin') {
+            loadAdminData();
+        }
+        currentEditScope = 'admin';
+    }
+}
+
+async function deleteRecord(rowId) {
+    if (!confirm("Ushbu ma'lumotni o'chirishga ishonchingiz komilmi?")) return;
+    const reason = askActionReason("O'chirish");
+    if (!reason) return;
     document.getElementById('adminList').innerHTML = `
         <div class="skeleton skeleton-item"></div>
         <div class="skeleton skeleton-item"></div>`;
 
     try {
-        const data = await apiRequest({ action: "admin_edit", rowId, amountUZS, amountUSD, rate, comment });
+        const data = await apiRequest({ action: "admin_delete", rowId, reason });
         if (!data.success) {
-            showToastMsg('❌ ' + (data.error || 'Saqlashda xato'), true);
+            showToastMsg('❌ ' + (data.error || "O'chirishda xato"), true);
         }
     } catch {
         showToastMsg('❌ Server xatosi', true);
@@ -88,20 +168,23 @@ async function saveEdit() {
     }
 }
 
-async function deleteRecord(rowId) {
+async function deleteOwnRecord(rowId) {
     if (!confirm("Ushbu ma'lumotni o'chirishga ishonchingiz komilmi?")) return;
-    document.getElementById('adminList').innerHTML = `
-        <div class="skeleton skeleton-item"></div>
-        <div class="skeleton skeleton-item"></div>`;
+    const reason = askActionReason("O'chirish");
+    if (!reason) return;
 
     try {
-        const data = await apiRequest({ action: "admin_delete", rowId });
+        const data = await apiRequest({ action: "self_delete", rowId, reason });
         if (!data.success) {
             showToastMsg('❌ ' + (data.error || "O'chirishda xato"), true);
+            return;
         }
+        myFullRecords = myFullRecords.filter(function (r) {
+            return String(r.rowId) !== String(rowId);
+        });
+        applyMyFilters();
+        showToastMsg("✅ O'chirildi");
     } catch {
         showToastMsg('❌ Server xatosi', true);
-    } finally {
-        loadAdminData();
     }
 }
