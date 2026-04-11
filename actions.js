@@ -19,6 +19,19 @@ function openEdit(rowId) {
     document.getElementById('editRate').value      = r.rate      || '';
     document.getElementById('editComment').value   = r.comment   || '';
 
+    const eMonth = document.getElementById('editActionMonth');
+    const eYear = document.getElementById('editActionYear');
+    if (eMonth && eYear) {
+        if (r.actionPeriod) {
+            const parts = r.actionPeriod.split('-');
+            eYear.value = parts[0];
+            eMonth.value = parts[1];
+        } else {
+            const dMeta = getDateMonthYear(r.date);
+            if (dMeta) { eYear.value = dMeta.year; eMonth.value = dMeta.month; }
+        }
+    }
+
     const headerName = document.getElementById('editHeaderName');
     const headerDate = document.getElementById('editHeaderDate');
     if (headerName) headerName.innerText = r.name || '—';
@@ -41,6 +54,19 @@ function openSelfEdit(rowId) {
     document.getElementById('editAmountUSD').value = r.amountUSD || '';
     document.getElementById('editRate').value      = r.rate      || '';
     document.getElementById('editComment').value   = r.comment   || '';
+
+    const eMonth = document.getElementById('editActionMonth');
+    const eYear = document.getElementById('editActionYear');
+    if (eMonth && eYear) {
+        if (r.actionPeriod) {
+            const parts = r.actionPeriod.split('-');
+            eYear.value = parts[0];
+            eMonth.value = parts[1];
+        } else {
+            const dMeta = getDateMonthYear(r.date);
+            if (dMeta) { eYear.value = dMeta.year; eMonth.value = dMeta.month; }
+        }
+    }
 
     const headerName = document.getElementById('editHeaderName');
     const headerDate = document.getElementById('editHeaderDate');
@@ -87,7 +113,9 @@ function closeModal() {
     document.getElementById('editModal').classList.add('hidden');
 }
 
-function askActionReason(titleText) {
+async function askActionReason(titleText) {
+    if (document.activeElement) document.activeElement.blur();
+    await new Promise(r => setTimeout(r, 50));
     const reason = prompt(`${titleText} sababini kiriting:`);
     if (!reason || !String(reason).trim()) {
         showToastMsg('❌ Sabab kiritilishi shart', true);
@@ -101,7 +129,15 @@ async function saveEdit() {
     const amountUSD = parseFloat(document.getElementById('editAmountUSD').value) || 0;
     const rate      = parseFloat(document.getElementById('editRate').value)      || 0;
     const comment   = document.getElementById('editComment').value;
-    const reason    = askActionReason("Tahrirlash");
+    
+    let actionPeriod = '';
+    const eMonth = document.getElementById('editActionMonth');
+    const eYear = document.getElementById('editActionYear');
+    if (eMonth && eYear && eMonth.value && eYear.value) {
+        actionPeriod = `${eYear.value}-${eMonth.value}`;
+    }
+
+    const reason    = await askActionReason("Tahrirlash");
     if (!reason) return;
 
     // FIX 4: UZS ni qayta hisoblash
@@ -121,7 +157,7 @@ async function saveEdit() {
 
     try {
         const action = currentEditScope === 'self' ? 'self_edit' : 'admin_edit';
-        const data = await apiRequest({ action, rowId, amountUZS, amountUSD, rate, comment, reason });
+        const data = await apiRequest({ action, rowId, amountUZS, amountUSD, rate, comment, reason, actionPeriod });
         if (!data.success) {
             showToastMsg('❌ ' + (data.error || 'Saqlashda xato'), true);
             return;
@@ -133,6 +169,7 @@ async function saveEdit() {
                 rec.amountUSD = Number(amountUSD) || 0;
                 rec.rate = Number(rate) || 0;
                 rec.comment = comment || '';
+                rec.actionPeriod = actionPeriod;
             }
             applyMyFilters();
             showToastMsg('✅ Saqlandi!');
@@ -149,8 +186,10 @@ async function saveEdit() {
 }
 
 async function deleteRecord(rowId) {
+    if (document.activeElement) document.activeElement.blur();
+    await new Promise(r => setTimeout(r, 50));
     if (!confirm("Ushbu ma'lumotni o'chirishga ishonchingiz komilmi?")) return;
-    const reason = askActionReason("O'chirish");
+    const reason = await askActionReason("O'chirish");
     if (!reason) return;
     document.getElementById('adminList').innerHTML = `
         <div class="skeleton skeleton-item"></div>
@@ -169,8 +208,10 @@ async function deleteRecord(rowId) {
 }
 
 async function deleteOwnRecord(rowId) {
+    if (document.activeElement) document.activeElement.blur();
+    await new Promise(r => setTimeout(r, 50));
     if (!confirm("Ushbu ma'lumotni o'chirishga ishonchingiz komilmi?")) return;
-    const reason = askActionReason("O'chirish");
+    const reason = await askActionReason("O'chirish");
     if (!reason) return;
 
     try {

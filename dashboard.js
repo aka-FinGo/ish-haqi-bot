@@ -25,6 +25,21 @@ function parseDate(s) {
     };
 }
 
+function getRecordMonthKey(r) {
+    if (r.actionPeriod) {
+        const parts = r.actionPeriod.split('-');
+        if (parts.length === 2) {
+            const y = parts[0];
+            const m = parts[1];
+            const mIdx = parseInt(m, 10) - 1;
+            if (mIdx >= 0 && mIdx <= 11) {
+                return { m, y, key: `${y}-${m}`, label: `${MONTHS_UZ[mIdx]} ${y}` };
+            }
+        }
+    }
+    return parseDate(r.date);
+}
+
 function getLastNMonths(n) {
     const r = [], now = new Date();
     for (let i = n - 1; i >= 0; i--) {
@@ -40,7 +55,7 @@ function sumByMonthKey(recs, months) {
     const map = {};
     months.forEach(mo => { map[mo.key] = 0; });
     recs.forEach(r => {
-        const d = parseDate(r.date);
+        const d = getRecordMonthKey(r);
         if (d && map[d.key] !== undefined) map[d.key] += Number(r.amountUZS) || 0;
     });
     return months.map(mo => map[mo.key]);
@@ -67,14 +82,14 @@ const pureUZS = r => r.filter(x => !Number(x.amountUSD)).reduce((s, x) => s + (N
 const convUZS = r => r.filter(x => Number(x.amountUSD) > 0).reduce((s, x) => s + (Number(x.amountUZS) || 0), 0);
 
 function avgMonthly(recs) {
-    const keys = new Set(recs.map(r => { const d = parseDate(r.date); return d ? d.key : null; }).filter(Boolean));
+    const keys = new Set(recs.map(r => { const d = getRecordMonthKey(r); return d ? d.key : null; }).filter(Boolean));
     return keys.size ? Math.round(sumUZS(recs) / keys.size) : 0;
 }
 
 function peakMonth(recs) {
     const map = {};
     recs.forEach(r => {
-        const d = parseDate(r.date);
+        const d = getRecordMonthKey(r);
         if (d) map[d.label] = (map[d.label] || 0) + (Number(r.amountUZS) || 0);
     });
     const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
@@ -197,7 +212,7 @@ function calc6MonthSplit(recs, months6) {
     return months6.map(mo => {
         let uzs = 0, usd = 0;
         recs.forEach(r => {
-            const d = parseDate(r.date);
+            const d = getRecordMonthKey(r);
             if (!d || d.key !== mo.key) return;
             const isUsd = Number(r.amountUSD) > 0;
             if (isUsd) {
@@ -241,7 +256,7 @@ function renderPersonalCharts(prefix, recs, months6) {
     }
 
     // Tx count line
-    const txPerMo = months6.map(mo => recs.filter(r => { const d = parseDate(r.date); return d && d.key === mo.key; }).length);
+    const txPerMo = months6.map(mo => recs.filter(r => { const d = getRecordMonthKey(r); return d && d.key === mo.key; }).length);
     mkLine(prefix + '_txCount', months6.map(m => m.label), [{
         label: 'Amallar',
         data: txPerMo,

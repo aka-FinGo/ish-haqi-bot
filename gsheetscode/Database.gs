@@ -46,7 +46,8 @@ var DATA_COL = {
   RATE: 4,
   COMMENT: 5,
   DATE: 6,
-  IS_DELETED: 7
+  IS_DELETED: 7,
+  ACTION_PERIOD: 8
 };
 
 var _MEMO = {
@@ -195,13 +196,16 @@ function synchronizeEmployeeRowsToV2_(empSheet, hideLegacyColumns) {
 
 function ensureDataInfrastructure_(dataSheet) {
   if (!dataSheet) return;
-  if (dataSheet.getMaxColumns() < 8) {
-    dataSheet.insertColumnsAfter(dataSheet.getMaxColumns(), 8 - dataSheet.getMaxColumns());
+  if (dataSheet.getMaxColumns() < 9) {
+    dataSheet.insertColumnsAfter(dataSheet.getMaxColumns(), 9 - dataSheet.getMaxColumns());
   }
 
-  var header = dataSheet.getRange(1, 1, 1, 8).getValues()[0];
+  var header = dataSheet.getRange(1, 1, 1, 9).getValues()[0];
   if (!header[DATA_COL.IS_DELETED]) {
     dataSheet.getRange(1, DATA_COL.IS_DELETED + 1).setValue('IsDeleted');
+  }
+  if (!header[DATA_COL.ACTION_PERIOD]) {
+    dataSheet.getRange(1, DATA_COL.ACTION_PERIOD + 1).setValue('Davri');
   }
 }
 
@@ -256,6 +260,7 @@ function rowToRecordForAudit_(row) {
     rate: Number(row[DATA_COL.RATE]) || 0,
     comment: String(row[DATA_COL.COMMENT] || ''),
     date: formatDateCell(row[DATA_COL.DATE]),
+    actionPeriod: String(row[DATA_COL.ACTION_PERIOD] || ''),
     isDeleted: Number(row[DATA_COL.IS_DELETED]) || 0
   };
 }
@@ -302,7 +307,7 @@ function isConfigSuperAdminId_(tgId) {
   return String(tgId || '').trim() === cfg;
 }
 
-function matchesAdminFilters_(name, comment, dateMeta, filters) {
+function matchesAdminFilters_(name, comment, dateMeta, actionPeriod, filters) {
   var f = filters || {};
   var employee = String(f.employee || 'all');
   var month = String(f.month || 'all');
@@ -318,9 +323,17 @@ function matchesAdminFilters_(name, comment, dateMeta, filters) {
   }
 
   if (month !== 'all' || year !== 'all') {
-    if (!dateMeta) return false;
-    if (month !== 'all' && dateMeta.month !== month) return false;
-    if (year !== 'all' && dateMeta.year !== year) return false;
+    var rYear = null, rMonth = null;
+    if (actionPeriod) {
+        var parts = actionPeriod.split('-');
+        if (parts.length === 2) { rYear = parts[0]; rMonth = parts[1]; }
+    } else if (dateMeta) {
+        rYear = dateMeta.year; rMonth = dateMeta.month;
+    }
+
+    if (!rYear && !rMonth) return false;
+    if (month !== 'all' && rMonth !== month) return false;
+    if (year !== 'all' && rYear !== year) return false;
   }
 
   return true;
@@ -733,7 +746,8 @@ function initUser(tgId, auth, data) {
         amountUSD: Number(values[i][DATA_COL.AMOUNT_USD]) || 0,
         rate:      Number(values[i][DATA_COL.RATE]) || 0,
         comment:   String(values[i][DATA_COL.COMMENT] || ''),
-        date:      formatDateCell(values[i][DATA_COL.DATE])
+        date:      formatDateCell(values[i][DATA_COL.DATE]),
+        actionPeriod: String(values[i][DATA_COL.ACTION_PERIOD] || '') // YYYY-MM
       });
     }
   }
@@ -789,6 +803,8 @@ function addRecord(data, auth, actorTgId) {
 
     var parsedDate = parseDateInput_(data.date, data.dateISO);
     if (!parsedDate) parsedDate = parseDateInput_(new Date(), null);
+    
+    var forPeriod = String(data.actionPeriod || '').trim();
 
     dataSheet.appendRow([
       displayName,
@@ -798,14 +814,16 @@ function addRecord(data, auth, actorTgId) {
       Number(data.rate)      || 0,
       data.comment      || '',
       parsedDate.dateObj,
-      0
+      0,
+      forPeriod
     ]);
 
     var row = dataSheet.getLastRow();
     dataSheet.getRange(row, 7).setNumberFormat('dd/MM/yyyy');
     dataSheet.getRange(row, 8).setNumberFormat('0');
+    dataSheet.getRange(row, 9).setNumberFormat('@'); // Text format for actionPeriod
 
-    var appendedValues = dataSheet.getRange(row, 1, 1, 8).getValues()[0];
+    var appendedValues = dataSheet.getRange(row, 1, 1, 9).getValues()[0];
     addAuditLog_(actorTgId, 'add_record', row, null, rowToRecordForAudit_(appendedValues), 'created');
 
     notifyPayload = {
@@ -814,10 +832,11 @@ function addRecord(data, auth, actorTgId) {
       amountUSD: Number(data.amountUSD) || 0,
       rate: Number(data.rate) || 0,
       comment: data.comment || '',
-      date: parsedDate.display
+      date: parsedDate.display,
+      actionPeriod: forPeriod
     };
 
-    return { success: true };
+    return { success: true, rowId: row };
   });
 
   if (!writeResult.success) return writeResult;
@@ -847,11 +866,17 @@ function adminGetAll(options) {
     var comment = String(row[DATA_COL.COMMENT] || '');
     var dateMeta = parseDateInput_(row[DATA_COL.DATE], null);
     var dateText = dateMeta ? dateMeta.display : formatDateCell(row[DATA_COL.DATE]);
+    var ap = String(row[DATA_COL.ACTION_PERIOD] || '').trim();
 
     if (name) employeeSet[name] = true;
-    if (dateMeta) yearSet[dateMeta.year] = true;
+    if (ap) {
+        var parts = ap.split('-');
+        if (parts[0]) yearSet[parts[0]] = true;
+    } else if (dateMeta) {
+        yearSet[dateMeta.year] = true;
+    }
 
-    if (!matchesAdminFilters_(name, comment, dateMeta, opts)) continue;
+    if (!matchesAdminFilters_(name, comment, dateMeta, ap, opts)) continue;
 
     var amountUZS = Number(row[DATA_COL.AMOUNT_UZS]) || 0;
     totalUZS += amountUZS;
@@ -864,7 +889,8 @@ function adminGetAll(options) {
       amountUSD: Number(row[DATA_COL.AMOUNT_USD]) || 0,
       rate:      Number(row[DATA_COL.RATE]) || 0,
       comment:   comment,
-      date:      dateText
+      date:      dateText,
+      actionPeriod: ap
     });
   }
 
@@ -919,7 +945,7 @@ function adminEditRecord(data, actorTgId) {
       return { success:false, error:'Qator topilmadi' };
     }
 
-    var before = dataSheet.getRange(row, 1, 1, 8).getValues()[0];
+    var before = dataSheet.getRange(row, 1, 1, 9).getValues()[0];
     if (isDeletedRow_(before)) {
       return { success:false, error:"Bu yozuv o'chirilgan" };
     }
@@ -928,8 +954,11 @@ function adminEditRecord(data, actorTgId) {
     dataSheet.getRange(row, 4).setValue(Number(data.amountUSD) || 0);
     dataSheet.getRange(row, 5).setValue(Number(data.rate)      || 0);
     dataSheet.getRange(row, 6).setValue(data.comment           || '');
+    if (data.actionPeriod !== undefined) {
+      dataSheet.getRange(row, 9).setValue(String(data.actionPeriod).trim());
+    }
 
-    var after = dataSheet.getRange(row, 1, 1, 8).getValues()[0];
+    var after = dataSheet.getRange(row, 1, 1, 9).getValues()[0];
     addAuditLog_(actorTgId, 'admin_edit', row, rowToRecordForAudit_(before), rowToRecordForAudit_(after), 'updated: ' + reason);
     return { success: true };
   });
@@ -946,13 +975,13 @@ function adminDeleteRecord(rowId, actorTgId, reasonRaw) {
       return { success:false, error:'Qator topilmadi' };
     }
 
-    var before = dataSheet.getRange(row, 1, 1, 8).getValues()[0];
+    var before = dataSheet.getRange(row, 1, 1, 9).getValues()[0];
     if (isDeletedRow_(before)) {
       return { success:true };
     }
 
     dataSheet.getRange(row, DATA_COL.IS_DELETED + 1).setValue(1);
-    var after = dataSheet.getRange(row, 1, 1, 8).getValues()[0];
+    var after = dataSheet.getRange(row, 1, 1, 9).getValues()[0];
     addAuditLog_(actorTgId, 'admin_delete', row, rowToRecordForAudit_(before), rowToRecordForAudit_(after), 'soft-delete: ' + reason);
     return { success: true };
   });
@@ -969,7 +998,7 @@ function selfEditRecord(data, actorTgId) {
       return { success:false, error:'Qator topilmadi' };
     }
 
-    var before = dataSheet.getRange(row, 1, 1, 8).getValues()[0];
+    var before = dataSheet.getRange(row, 1, 1, 9).getValues()[0];
     if (isDeletedRow_(before)) return { success:false, error:"Bu yozuv o'chirilgan" };
 
     var ownerTgId = String(before[DATA_COL.TG_ID] || '').trim();
@@ -981,8 +1010,11 @@ function selfEditRecord(data, actorTgId) {
     dataSheet.getRange(row, 4).setValue(Number(data.amountUSD) || 0);
     dataSheet.getRange(row, 5).setValue(Number(data.rate)      || 0);
     dataSheet.getRange(row, 6).setValue(data.comment           || '');
+    if (data.actionPeriod !== undefined) {
+      dataSheet.getRange(row, 9).setValue(String(data.actionPeriod).trim());
+    }
 
-    var after = dataSheet.getRange(row, 1, 1, 8).getValues()[0];
+    var after = dataSheet.getRange(row, 1, 1, 9).getValues()[0];
     addAuditLog_(actorTgId, 'self_edit', row, rowToRecordForAudit_(before), rowToRecordForAudit_(after), 'updated: ' + reason);
     return { success:true };
   });
@@ -999,7 +1031,7 @@ function selfDeleteRecord(rowId, actorTgId, reasonRaw) {
       return { success:false, error:'Qator topilmadi' };
     }
 
-    var before = dataSheet.getRange(row, 1, 1, 8).getValues()[0];
+    var before = dataSheet.getRange(row, 1, 1, 9).getValues()[0];
     if (isDeletedRow_(before)) return { success:true };
 
     var ownerTgId = String(before[DATA_COL.TG_ID] || '').trim();
@@ -1008,7 +1040,7 @@ function selfDeleteRecord(rowId, actorTgId, reasonRaw) {
     }
 
     dataSheet.getRange(row, DATA_COL.IS_DELETED + 1).setValue(1);
-    var after = dataSheet.getRange(row, 1, 1, 8).getValues()[0];
+    var after = dataSheet.getRange(row, 1, 1, 9).getValues()[0];
     addAuditLog_(actorTgId, 'self_delete', row, rowToRecordForAudit_(before), rowToRecordForAudit_(after), 'soft-delete: ' + reason);
     return { success:true };
   });

@@ -7,6 +7,7 @@ function showDetailModal(r, mode) {
     const safeName = escapeHtml(r.name || '—');
     const safeComment = escapeHtml(r.comment || '—');
     const safeDate = escapeHtml(r.date || '—');
+    const safePeriod = r.actionPeriod ? escapeHtml(r.actionPeriod) : '';
     // FIX: rate turli fieldlarda kelishi mumkin
     const rate = Number(r.rate) || Number(r.exchangeRate) || Number(r.kurs) || 0;
     const isUsd = usd > 0;
@@ -71,7 +72,8 @@ function showDetailModal(r, mode) {
         <div class="detail-header">
             ${currencyBadge}
             <div class="detail-comment">${safeComment}</div>
-            <div class="detail-date">📅 ${safeDate}</div>
+            <div class="detail-date">📅 yozildi: ${safeDate}</div>
+            ${safePeriod ? `<div class="detail-date" style="margin-top:4px;color:var(--text-main);font-weight:600;">🔄 Davr: ${safePeriod}</div>` : ''}
         </div>
         <div class="detail-card">
             ${nameRow}

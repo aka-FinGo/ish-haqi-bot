@@ -406,11 +406,16 @@ function renderAdminPage() {
         const safeDate = escapeHtml(r.date || '—');
         const safeComment = escapeHtml(r.comment || '—');
 
+        let dateHtml = `<span class="item-date">⏳ ${safeDate}</span>`;
+        if (r.actionPeriod) {
+            dateHtml = `<span class="item-date">📅 Davr: ${escapeHtml(r.actionPeriod)} (Yoz: ${safeDate})</span>`;
+        }
+
         html += `
         <div class="history-item" onclick="showAdminDetailModal(${idx})" style="cursor:pointer;">
             <div class="item-header">
                 <span class="item-name">👤 ${safeName}</span>
-                <span class="item-date">${safeDate}</span>
+                ${dateHtml}
             </div>
             <div class="item-comment">📝 ${safeComment}</div>
             <div class="item-amounts">
