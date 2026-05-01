@@ -154,6 +154,55 @@ function doPost(e) {
         result  = { success: res.ok, error: res.description };
         break;
 
+      // ---- KVADRATLAR (Measurements) ----
+      case "kvadrat_add":
+        if (!auth.isSuperAdmin && (!auth.positions || auth.positions.indexOf('Loyihachi') === -1)) {
+          return sendJSON({ success:false, error: "Faqat 'Loyihachi' buyurtma qo'sha oladi" });
+        }
+        result = kvadratAdd(data, auth, tgId);
+        break;
+
+      case "kvadrat_get_all":
+        result = kvadratGetAll(data);
+        break;
+
+      case "kvadrat_edit":
+        if (!auth.isSuperAdmin && (!auth.positions || auth.positions.indexOf('Loyihachi') === -1)) {
+          return sendJSON({ success:false, error: "Faqat 'Loyihachi' tahrirlay oladi" });
+        }
+        result = kvadratEdit(data, auth, tgId);
+        break;
+
+      case "kvadrat_delete":
+        if (!auth.isSuperAdmin && (!auth.positions || auth.positions.indexOf('Loyihachi') === -1)) {
+          return sendJSON({ success:false, error: "Faqat 'Loyihachi' o'chira oladi" });
+        }
+        result = kvadratDelete(data, auth, tgId);
+        break;
+
+      case "kvadrat_claim":
+        if (!auth.inList && !auth.isSuperAdmin) return sendJSON({ success:false, error:"Ro'yxatda topilmadingiz" });
+        result = processWorkflowStep(data.rowId, auth, tgId);
+        break;
+
+      case "workflow_get_config":
+        result = { success:true, steps: getWorkflowConfig() };
+        break;
+
+      case "workflow_save_config":
+        if (!auth.isSuperAdmin) return sendJSON({ success:false, error: "Faqat SuperAdmin oqimni o'zgartira oladi" });
+        result = saveWorkflowConfig(data.steps);
+        break;
+
+      case "positions_get_all":
+        result = { success:true, positions: getAllPositions() };
+        break;
+
+      case "positions_save_all":
+        if (!auth.isSuperAdmin) return sendJSON({ success:false, error: "Faqat SuperAdmin lavozimlarni o'zgartira oladi" });
+        result = savePositions(data.positions);
+        break;
+
       default:
         result = { success: false, error: "Noma'lum: " + action };
     }

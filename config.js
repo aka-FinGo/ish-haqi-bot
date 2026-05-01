@@ -1,7 +1,7 @@
 // ============================================================
 // config.js — Frontend sozlamalari
 // ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbxvwRMY-t-9_0S0A7zl8DXSMpCCj35D_kv8iREYDTs5TAMbKTVEs5ol2mpeLaedomA5Og/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwwCfiCjL6Nvi3uXw6gfLkrXJrV30SS7YKoeQbnzJj0wXieWjTHrcn9vtPBtvonFQa4RA/exec";
 
 const tg = window.Telegram.WebApp;
 tg.expand();
@@ -125,6 +125,27 @@ function getTodayDdMmYyyy(now = new Date()) {
   };
 }
 
+function setButtonLoading(button, isLoading, text) {
+  if (!button) return;
+  if (isLoading) {
+    if (button.dataset.originalHtml === undefined) {
+      button.dataset.originalHtml = button.innerHTML;
+    }
+    button.disabled = true;
+    if (typeof text === 'string' && text.trim()) {
+      button.innerHTML = `<span class="btn-text">${escapeHtml(text)}</span>`;
+    }
+    button.classList.add('btn-loading');
+  } else {
+    button.disabled = false;
+    if (button.dataset.originalHtml !== undefined) {
+      button.innerHTML = button.dataset.originalHtml;
+      delete button.dataset.originalHtml;
+    }
+    button.classList.remove('btn-loading');
+  }
+}
+
 async function apiRequest(payload, opts) {
   const options = opts || {};
   const timeoutMs = Number(options.timeoutMs) || 25000;
@@ -143,7 +164,12 @@ async function apiRequest(payload, opts) {
     }, timeoutMs);
   }
 
+  const logAction = 'API [' + (body.action || 'unknown') + ']';
+  console.time(logAction);
+
   try {
+    console.log('📤 API so\'rov yuborilmoqda:', body.action || 'unknown');
+    
     const res = await fetch(API_URL, {
       method: 'POST',
       // IMPORTANT:
@@ -153,19 +179,38 @@ async function apiRequest(payload, opts) {
     });
 
     if (!res.ok) {
-      throw new Error('HTTP ' + res.status);
+      throw new Error('HTTP ' + res.status + ' ' + res.statusText);
     }
 
     const text = await res.text();
+    
+    // ✅ FIX: Empty response handling
+    if (!text || text.trim() === '') {
+      throw new Error('Server bo\'sh javob qaytardi');
+    }
+    
     try {
-      return JSON.parse(text);
+      const parsed = JSON.parse(text);
+      console.log('✅ API javob olingan:', body.action || 'unknown');
+      console.timeEnd(logAction);
+      return parsed;
     } catch (e) {
-      throw new Error('Server javobi noto\'g\'ri formatda');
+      console.timeEnd(logAction);
+      console.error('❌ JSON parsing xatosi. Response:', text.substring(0, 200));
+      throw new Error('Server javobi noto\'g\'ri JSON formatda');
     }
   } catch (err) {
     if (err && err.name === 'AbortError') {
-      throw new Error("So'rov vaqti tugadi");
+      console.error('❌ API timeout:', body.action, timeoutMs + 'ms');
+      throw new Error('So\'rov vaqti tugadi (' + timeoutMs + 'ms)');
     }
+    
+    if (err instanceof TypeError) {
+      console.error('❌ Network xatosi:', err.message);
+      throw new Error('Tarmoq ulanishida xato: ' + err.message);
+    }
+    
+    console.timeEnd(logAction);
     throw err;
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
