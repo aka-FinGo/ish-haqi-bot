@@ -46,7 +46,7 @@ function showCustomConfirm(title, message, confirmText, cancelText, requireReaso
     let overlay = document.getElementById(overlayId);
     if (overlay) overlay.remove();
     const html = `
-        <div id="${overlayId}" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;justify-content:center;align-items:center;z-index:1001;backdrop-filter:blur(4px);">
+        <div id="${overlayId}" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;justify-content:center;align-items:center;z-index:3000;backdrop-filter:blur(4px);">
             <div style="background:white;border-radius:16px;padding:24px;margin:20px;max-width:90%;width:350px;box-shadow:0 10px 25px rgba(0,0,0,0.2);animation:modalSlideIn 0.3s cubic-bezier(0.16,1,0.3,1);">
                 <h3 style="margin:0 0 12px;color:#1e293b;font-size:18px;">${title}</h3>
                 <p style="color:#64748b;margin:0 0 20px;font-size:14px;line-height:1.5;">${message}</p>
@@ -152,18 +152,21 @@ async function initializeApp() {
             else if (data.isAdmin) myRole = 'Admin';
             else if (data.isDirector || data.isDirektor) myRole = 'Direktor';
             else myRole = 'User';
+            myIsSardor = !!data.isSardor;
             const asBool = (v) => v === true || v === 1 || String(v || '') === '1' || String(v || '').toLowerCase() === 'true';
             if (myRole === 'SuperAdmin') {
                 myPermissions = {
                     canViewAll: true, canEdit: true, canDelete: true, canExport: true, canViewDash: true,
-                    positions: data.positions || [], workflowConfig: data.workflowConfig || [], allPositions: data.allPositions || []
+                    positions: data.positions || [], workflowConfig: data.workflowConfig || [], allPositions: data.allPositions || [],
+                    isWorkflowStrict: !!data.isWorkflowStrict
                 };
             } else {
                 const p = data.permissions || {};
                 myPermissions = {
                     canViewAll: asBool(p.canViewAll), canEdit: asBool(p.canEdit), canDelete: asBool(p.canDelete),
-                    canExport: asBool(p.canExport), canViewDash: asBool(p.canViewDash), positions: data.positions || [],
-                    workflowConfig: data.workflowConfig || [], allPositions: data.allPositions || []
+                    canExport: asBool(p.canExport), canViewDash: asBool(p.canViewDash),
+                    positions: data.positions || [], workflowConfig: data.workflowConfig || [], allPositions: data.allPositions || [],
+                    isWorkflowStrict: !!data.isWorkflowStrict
                 };
             }
             if (typeof updateTechnicalPositions === 'function') updateTechnicalPositions(data.allPositions || []);

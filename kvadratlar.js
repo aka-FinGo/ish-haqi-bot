@@ -98,7 +98,6 @@ function populateKvadratMeta(staffList) {
             opt.textContent = label;
             processSelect.appendChild(opt);
         });
-        processSelect.value = 'all';
     }
     _initKvFormYears();
 }
@@ -124,22 +123,30 @@ function _initKvFormYears() {
 async function initKvadratTab() {
     const listContainer = document.getElementById('kvList');
     if (!listContainer) return;
-    listContainer.innerHTML = `<div class="kv-table-wrap"><table class="kv-table"><thead><tr><th>№</th><th>Buyurtma №</th><th>Oy</th><th>m²</th><th>ST</th></tr></thead><tbody>${Array(5).fill('<tr><td colspan="5"><div class="skeleton" style="height:25px;margin:5px 0;"></div></tr>').join('')}</tbody></table></div>`;
+    
+    listContainer.innerHTML = `
+        <div class="skeleton-container" style="padding:0;">
+            ${Array(5).fill('<div class="skeleton-card" style="margin-bottom:12px;"><div class="skeleton" style="height:20px;width:40%;margin-bottom:10px;"></div><div class="skeleton" style="height:15px;width:70%;"></div></div>').join('')}
+        </div>`;
+
     try {
-        const data = await apiRequest({
-            action: 'kvadrat_get_all'
-        });
+        const data = await apiRequest({ action: 'kvadrat_get_all' });
         if (data.success) {
             kvFullRecords = data.data || [];
-            if (typeof kvDashboardRecords !== 'undefined') {
-                kvDashboardRecords = kvFullRecords;
-            }
+            if (typeof kvDashboardRecords !== 'undefined') kvDashboardRecords = kvFullRecords;
             applyKvFilters();
         } else {
-            listContainer.innerHTML = `<div class="empty-state"><p style="color:var(--red);">❌ ${escapeHtml(data.error || 'Yuklashda xato')}</p></div>`;
+            listContainer.innerHTML = `<div class="empty-state"><p style="color:var(--red);">❌ Xato: ${escapeHtml(data.error || 'Yuklashda xato')}</p></div>`;
         }
     } catch (e) {
-        listContainer.innerHTML = `<div class="empty-state"><p style="color:var(--red);">❌ Tarmoq xatosi: ${escapeHtml(e.message)}</p></div>`;
+        console.error('initKvadratTab error:', e);
+        // Agar network error bo'lsa va dashboardda ma'lumot bo'lsa - favqulodda sinxronlash
+        if (typeof kvDashboardRecords !== 'undefined' && kvDashboardRecords.length > 0) {
+            kvFullRecords = kvDashboardRecords;
+            applyKvFilters();
+        } else {
+            listContainer.innerHTML = `<div class="empty-state"><p style="color:var(--red);">❌ Tarmoq xatosi: ${escapeHtml(e.message)}</p></div>`;
+        }
     }
     updateKvFabVisibility();
 }
@@ -154,7 +161,6 @@ function updateKvFabVisibility() {
         fab.style.visibility = isLoyihachi ? 'visible' : 'hidden';
         fab.style.pointerEvents = isLoyihachi ? 'auto' : 'none';
         fab.style.opacity = isLoyihachi ? '1' : '0';
-        fab.style.transition = 'opacity 0.2s';
     } else {
         fab.style.visibility = 'visible';
         fab.style.pointerEvents = 'auto';
@@ -166,147 +172,209 @@ function renderKvList() {
     const container = document.getElementById('kvList');
     const totalDisplay = document.getElementById('kvTotalM2');
     if (!container) return;
-    if (!kvFilteredRecords.length) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon">📏</div><p>Ma'lumot topilmadi</p></div>`;
+
+    if (!kvFilteredRecords || !kvFilteredRecords.length) {
+        container.innerHTML = `
+            <div class="empty-state" style="background:#fff; border:2px dashed #CBD5E1; border-radius:24px; padding:60px 20px; text-align:center; margin:20px 0;">
+                <div class="empty-icon" style="font-size:48px; margin-bottom:16px;">📏</div>
+                <p style="font-size:16px; font-weight:700; color:#1E293B; margin:0;">Ma'lumotlar topilmadi</p>
+                <p style="font-size:13px; color:#64748B; margin-top:8px;">Ushbu davr yoki filtrlar bo'yicha ma'lumot yo'q.</p>
+            </div>`;
         if (totalDisplay) totalDisplay.innerText = '0';
         return;
     }
 
-    let lastDavr = null;
-    const sortedKvData = [...kvFilteredRecords].sort((a, b) => {
-        // Yil va Oy bo'yicha saralash (Davr)
-        const davrA = a.year && a.month ? `${a.year}-${String(a.month).replace('_', '').padStart(2, '0')}` : getDavrSortKey('', a.date, '');
-        const davrB = b.year && b.month ? `${b.year}-${String(b.month).replace('_', '').padStart(2, '0')}` : getDavrSortKey('', b.date, '');
-        
-        if (davrB !== davrA) return davrB.localeCompare(davrA);
-        
-        // Agar davr bir xil bo'lsa, № bo'yicha (kattasi tepada)
-        const noA = parseInt(a.no, 10) || 0;
-        const noB = parseInt(b.no, 10) || 0;
-        return noB - noA;
-    });
-
-    // Pagination logic
-    const totalPages = Math.ceil(sortedKvData.length / KV_ITEMS_PER_PAGE);
-    const start = (kvCurrentPage - 1) * KV_ITEMS_PER_PAGE;
-    const end = start + KV_ITEMS_PER_PAGE;
-    const paginatedData = sortedKvData.slice(start, end);
-
-    const fragment = document.createDocumentFragment();
-    const wrap = document.createElement('div');
-    wrap.className = 'kv-table-wrap';
-    const table = document.createElement('table');
-    table.className = 'kv-table';
-    table.innerHTML = `<thead><tr><th>№</th><th>Buyurtma №</th><th>Oy</th><th style="text-align:right;">m²</th><th>ST</th></tr></thead>`;
-    const tbody = document.createElement('tbody');
-
-    const totalM2ForFiltered = kvFilteredRecords.reduce((sum, rec) => sum + (Number(rec.totalM2) || 0), 0);
-
-    paginatedData.forEach((rec, loopIdx) => {
-        const globalIdx = (kvCurrentPage - 1) * KV_ITEMS_PER_PAGE + loopIdx;
-        const origIdx = kvFilteredRecords.indexOf(rec);
-
-        const currentDavr = rec.year && rec.month ? `${rec.year}-${String(rec.month).replace('_', '').padStart(2, '0')}` : getDavrSortKey('', rec.date, '');
-        let relDavr = getDavrLabel(currentDavr);
-
-        if (relDavr !== lastDavr) {
-            const trDate = document.createElement('tr');
-            trDate.className = 'kv-date-row';
-            trDate.innerHTML = `<td colspan="5" style="font-size:13px; font-weight:700; color:#64748b; padding:8px 12px; background:#f8fafc;">${relDavr}</td>`;
-            tbody.appendChild(trDate);
-            lastDavr = relDavr;
+    try {
+        const totalM2ForFiltered = kvFilteredRecords.reduce((sum, rec) => sum + (Number(rec.totalM2) || 0), 0);
+        if (totalDisplay) {
+            totalDisplay.innerText = totalM2ForFiltered.toLocaleString('uz-UZ', { maximumFractionDigits: 1 });
         }
-        const m2Val = (Number(rec.totalM2) || 0).toLocaleString('uz-UZ', {
-            minimumFractionDigits: 1,
-            maximumFractionDigits: 1
+
+        let lastDavr = null;
+        const sortedKvData = [...kvFilteredRecords].sort((a, b) => {
+            const davrA = a.year && a.month ? `${a.year}-${String(a.month).replace('_', '').padStart(2, '0')}` : getDavrSortKey('', a.date, '');
+            const davrB = b.year && b.month ? `${b.year}-${String(b.month).replace('_', '').padStart(2, '0')}` : getDavrSortKey('', b.date, '');
+            if (davrB !== davrA) return davrB.localeCompare(davrA);
+            const noA = parseInt(a.no, 10) || 0;
+            const noB = parseInt(b.no, 10) || 0;
+            return noB - noA;
         });
-        const monthClean = String(rec.month || '').replace(/^_+/, '').replace(/^'/, '');
-        const config = (typeof myPermissions !== 'undefined' && Array.isArray(myPermissions.workflowConfig)) ? myPermissions.workflowConfig : [];
-        const totalSteps = config.length >= 2 ? config.length : 3;
-        const currentStepIdx = Number(rec.currentStep) || 1;
-        const phaseColors = getWorkflowStepColors(Math.max(0, currentStepIdx - 1), totalSteps);
-        const status = rec.status || 'yangi';
-        let stIcon = '🟡';
-        if (status.indexOf('yigi') !== -1) stIcon = '🔵';
-        else if (status.indexOf('tayyor') !== -1 || status.indexOf('landi') !== -1) stIcon = '🟢';
 
-        const trData = document.createElement('tr');
-        trData.className = 'kv-data-row';
-        trData.addEventListener('click', () => showKvDetailModal(origIdx));
-        trData.innerHTML = `<td class="kv-col-seq">${globalIdx + 1}</td><td class="kv-col-no">${escapeHtml(String(rec.no || '—'))}</td><td class="kv-col-oy">${monthClean || '—'}</td><td class="kv-col-m2">${m2Val}</td><td class="kv-col-st" title="${escapeHtml(status)}"><span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:${phaseColors.bg};border:1px solid ${phaseColors.color};"></span>${stIcon}</span></td>`;
-        tbody.appendChild(trData);
-    });
+        const totalPages = Math.ceil(sortedKvData.length / KV_ITEMS_PER_PAGE);
+        const start = (kvCurrentPage - 1) * KV_ITEMS_PER_PAGE;
+        const end = start + KV_ITEMS_PER_PAGE;
+        const paginatedData = sortedKvData.slice(start, end);
 
-    table.appendChild(tbody);
-    wrap.appendChild(table);
-    fragment.appendChild(wrap);
+        const wrap = document.createElement('div');
+        wrap.className = 'kv-table-wrap';
+        const table = document.createElement('table');
+        table.className = 'kv-table';
+        table.innerHTML = `<thead><tr><th>№</th><th>Buyurtma №</th><th>Oy</th><th style="text-align:right;">m²</th><th>ST</th></tr></thead>`;
+        const tbody = document.createElement('tbody');
 
-    if (totalPages > 1) {
-        const paginationDiv = document.createElement('div');
-        paginationDiv.className = 'pagination';
-        paginationDiv.style.cssText = 'display:flex; justify-content:center; gap:8px; padding:20px 0; flex-wrap:wrap;';
-        for (let i = 1; i <= totalPages; i++) {
-            const btn = document.createElement('button');
-            btn.className = `page-btn ${i === kvCurrentPage ? 'active' : ''}`;
-            btn.onclick = () => goToKvPage(i);
-            btn.innerText = i;
-            paginationDiv.appendChild(btn);
+        paginatedData.forEach((rec, loopIdx) => {
+            const globalIdx = (kvCurrentPage - 1) * KV_ITEMS_PER_PAGE + loopIdx;
+            const origIdx = kvFilteredRecords.indexOf(rec);
+
+            const currentDavr = rec.year && rec.month ? `${rec.year}-${String(rec.month).replace('_', '').padStart(2, '0')}` : getDavrSortKey('', rec.date, '');
+            let relDavr = getDavrLabel(currentDavr);
+
+            if (relDavr !== lastDavr) {
+                const trDate = document.createElement('tr');
+                trDate.className = 'kv-date-row';
+                trDate.innerHTML = `<td colspan="5" style="border:1px solid #E2E8F0;">🗓 Davr: ${relDavr}</td>`;
+                tbody.appendChild(trDate);
+                lastDavr = relDavr;
+            }
+
+            const m2Val = (Number(rec.totalM2) || 0).toLocaleString('uz-UZ', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+            const monthClean = String(rec.month || '').replace(/^_+/, '').replace(/^'/, '');
+            
+            // Workflow vizualizatsiyasi
+            const currentStepIdx = Number(rec.currentStep) || 1;
+            const config = (typeof myPermissions !== 'undefined' && Array.isArray(myPermissions.workflowConfig)) ? myPermissions.workflowConfig : [];
+            const totalSteps = config.length >= 2 ? config.length : 3;
+            
+            let phaseColor = '#CBD5E1'; // default gray
+            if (typeof getWorkflowStepColors === 'function') {
+                const colors = getWorkflowStepColors(Math.max(0, currentStepIdx - 1), totalSteps);
+                phaseColor = colors.bg || phaseColor;
+            }
+
+            const status = rec.status || 'yangi';
+            let stIcon = '🟡';
+            if (status.indexOf('yigi') !== -1) stIcon = '🔵';
+            else if (status.indexOf('tayyor') !== -1 || status.indexOf('landi') !== -1) stIcon = '🟢';
+
+            const trData = document.createElement('tr');
+            trData.className = 'kv-data-row';
+            trData.onclick = () => showKvDetailModal(origIdx);
+            trData.innerHTML = `
+                <td class="kv-col-seq">${globalIdx + 1}</td>
+                <td class="kv-col-no"><b>${escapeHtml(String(rec.no || '—'))}</b></td>
+                <td class="kv-col-oy">${monthClean || '—'}</td>
+                <td class="kv-col-m2" style="text-align:right; font-weight:700;">${m2Val}</td>
+                <td class="kv-col-st">
+                    <span style="display:inline-flex;align-items:center;gap:4px;">
+                        <span style="width:8px;height:8px;border-radius:50%;background:${phaseColor};"></span>
+                        ${stIcon}
+                    </span>
+                </td>`;
+            tbody.appendChild(trData);
+        });
+
+        table.appendChild(tbody);
+        wrap.appendChild(table);
+        container.innerHTML = '';
+        container.appendChild(wrap);
+
+        if (totalPages > 1) {
+            const pagDiv = document.createElement('div');
+            pagDiv.className = 'pagination';
+            pagDiv.style.cssText = 'display:flex; justify-content:center; gap:6px; padding:20px 0;';
+            for (let i = 1; i <= totalPages; i++) {
+                const btn = document.createElement('button');
+                btn.className = `page-btn ${i === kvCurrentPage ? 'active' : ''}`;
+                btn.onclick = () => goToKvPage(i);
+                btn.innerText = i;
+                pagDiv.appendChild(btn);
+            }
+            container.appendChild(pagDiv);
         }
-        fragment.appendChild(paginationDiv);
+
+        if (typeof renderKvWorkerStats === 'function') renderKvWorkerStats(kvFilteredRecords);
+
+    } catch (err) {
+        console.error('renderKvList crash:', err);
+        container.innerHTML = `<div class="empty-state" style="color:var(--red);">❌ Ro'yxatni chizishda xato yuz berdi.</div>`;
     }
-
-    container.innerHTML = '';
-    container.appendChild(fragment);
-
-    if (totalDisplay) totalDisplay.innerText = totalM2ForFiltered.toLocaleString('uz-UZ', {
-        maximumFractionDigits: 2
-    });
-    if (typeof renderKvWorkerStats === 'function') renderKvWorkerStats(kvFilteredRecords);
 }
 
 function goToKvPage(page) {
     kvCurrentPage = page;
     renderKvList();
-    document.getElementById('kvList').scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
-    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function showKvDetailModal(idx) {
     const rec = kvFilteredRecords[idx];
     if (!rec) return;
-    const m2Val = (Number(rec.totalM2) || 0).toLocaleString('uz-UZ', {
-        maximumFractionDigits: 2
-    });
-    let claimBtnHtml = '';
+    
+    const m2Val = (Number(rec.totalM2) || 0).toLocaleString('uz-UZ', { maximumFractionDigits: 2 });
     const status = rec.status || 'yangi';
     const config = (typeof myPermissions !== 'undefined' && Array.isArray(myPermissions.workflowConfig)) ? myPermissions.workflowConfig : [];
     const myPoss = (typeof myPermissions !== 'undefined' && Array.isArray(myPermissions.positions)) ? myPermissions.positions : [];
     const currentStepIdx = Number(rec.currentStep) || 1;
+    
+    let claimBtnHtml = '';
     const nextStep = config.find(s => s.index === currentStepIdx + 1);
     if (nextStep && (myRole === 'SuperAdmin' || myPoss.indexOf(nextStep.position) !== -1)) {
-        const totalSteps = config.length >= 2 ? config.length : 3;
-        const nextStepIdx = Number(nextStep.index || currentStepIdx + 1) - 1;
-        const nextColors = getWorkflowStepColors(nextStepIdx, totalSteps);
-        claimBtnHtml = `<button class="btn-main" style="background:${nextColors.bg};color:${nextColors.color};margin-bottom:10px;" onclick="closeKvDetailModal();claimKvWork(${rec.rowId})">✅ ${escapeHtml(nextStep.action)}</button>`;
+        let btnColor = '#10B981';
+        if (typeof getWorkflowStepColors === 'function') {
+            const totalSteps = config.length >= 2 ? config.length : 3;
+            btnColor = getWorkflowStepColors(nextStep.index - 1, totalSteps).bg || btnColor;
+        }
+        claimBtnHtml = `<button class="btn-main" style="background:${btnColor}; color:white; font-weight:800; border:none; box-shadow:0 4px 12px ${btnColor}66; margin-bottom:12px; height:50px; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="closeKvDetailModal();claimKvWork(${rec.rowId})">✅ ${escapeHtml(nextStep.action)}</button>`;
     }
+
     let historyHtml = '';
     const logs = rec.logs || [];
     logs.forEach(log => {
-        const totalSteps = config.length >= 2 ? config.length : 3;
         const stepCfg = config.find(s => s.index === log.step);
-        const stepIdx = stepCfg ? (Number(stepCfg.index || 1) - 1) : 0;
-        const phaseColors = getWorkflowStepColors(stepIdx, totalSteps);
-        const name = (log.uid === rec.ownerTgId) ? rec.staffName : (globalEmployeeList && globalEmployeeList.find(e => e.tgId == log.uid)?.username || log.uid);
-        historyHtml += `<div style="border-left:2px solid ${phaseColors.bg};padding-left:12px;margin-bottom:12px;position:relative;"><div style="width:10px;height:10px;border-radius:50%;background:${phaseColors.bg};position:absolute;left:-6px;top:4px;"></div><div style="font-size:12px;font-weight:700;color:${phaseColors.color};">${escapeHtml(stepCfg ? stepCfg.status : 'Bajarildi')}</div><div style="font-size:11px;color:var(--text-muted);">${escapeHtml(name)}• ${new Date(log.d).toLocaleString('uz-UZ')}</div></div>`;
+        let sColor = '#6366f1';
+        if (typeof getWorkflowStepColors === 'function') {
+            const totalSteps = config.length >= 2 ? config.length : 3;
+            sColor = getWorkflowStepColors((log.step || 1) - 1, totalSteps).bg || sColor;
+        }
+        const name = (log.uid === rec.ownerTgId) ? rec.staffName : (globalEmployeeList && globalEmployeeList.find(e => String(e.tgId) === String(log.uid))?.username || log.uid);
+        historyHtml += `
+            <div style="border-left:2px solid ${sColor}; padding-left:12px; margin-bottom:12px; position:relative;">
+                <div style="width:10px; height:10px; border-radius:50%; background:${sColor}; position:absolute; left:-6px; top:4px;"></div>
+                <div style="font-size:12px; font-weight:700; color:${sColor};">${escapeHtml(stepCfg ? stepCfg.status : 'Bajarildi')}</div>
+                <div style="font-size:11px; color:var(--text-muted);">${escapeHtml(name)} • ${new Date(log.d).toLocaleString('uz-UZ')}</div>
+            </div>`;
     });
-    const editBtn = myPermissions.canEdit || myRole === 'SuperAdmin' ? `<button class="kv-edit-btn" style="flex:1;padding:11px;border-radius:10px;background:#FEF3C7;color:#92400E;border:1.5px solid #FCD34D;font-weight:700;font-size:13px;cursor:pointer;" onclick="closeKvDetailModal();openKvModal(${rec.rowId})">✏️ Tahrirlash</button>` : '';
-    const deleteBtn = myPermissions.canDelete || myRole === 'SuperAdmin' ? `<button class="kv-delete-btn" style="flex:1;padding:11px;border-radius:10px;background:#FEE2E2;color:#991B1B;border:1.5px solid #FECACA;font-weight:700;font-size:13px;cursor:pointer;" onclick="closeKvDetailModal();deleteKv(${rec.rowId})">🗑 O'chirish</button>` : '';
-    const buttonsRow = (editBtn || deleteBtn) ? `<div style="display:flex;gap:8px;margin-bottom:12px;">${editBtn}${deleteBtn}</div>` : '';
-    document.getElementById('kvDetailModalBody').innerHTML = `<div class="modal-drag"></div>${buttonsRow}<div class="detail-header"><span class="detail-badge uzs" style="background:#EFF6FF;color:#1D4ED8;">📐 Ish Oqimi Tarixi</span><div class="detail-comment">📌 ${escapeHtml(rec.orderName || '—')}</div><div class="detail-date">📅 №${escapeHtml(String(rec.no || '—'))}|Sana:${escapeHtml(rec.date || '—')}</div></div><div class="detail-card" style="margin-bottom:15px;background:#F8FAFC;"><div class="detail-row"><span class="detail-key">Mas'ul hodim</span><span class="detail-val">${escapeHtml(rec.staffName || '—')}</span></div></div><div class="card" style="margin-bottom:15px;background:#F8FAFC;"><div style="font-size:11px;text-transform:uppercase;font-weight:700;color:var(--text-muted);margin-bottom:10px;">📉 Jarayon tarixi</div>${historyHtml || '<p style="font-size:12px;color:var(--text-muted);">Tarix bo\'sh</p>'}</div><div class="detail-card"><div class="detail-row"><span class="detail-key">Hozirgi Status</span><span class="detail-val"><b>${escapeHtml(status.toUpperCase())}</b></span></div><div class="detail-row"><span class="detail-key">Jami m²</span><span class="detail-val" style="color:#0F172A;font-size:18px;">${m2Val}m²</span></div></div>${claimBtnHtml}<button class="btn-secondary" style="margin-top:12px;width:100%;" onclick="closeKvDetailModal()">✕ Yopish</button>`;
+
+    const isAdmin = myRole === 'SuperAdmin' || myRole === 'Admin' || myRole === 'Direktor';
+    const canEditGlobal = isAdmin && myPermissions.canEdit;
+    const canDeleteGlobal = isAdmin && myPermissions.canDelete;
+    const isOwner = String(rec.ownerTgId) === String(telegramId);
+
+    const canEdit = canEditGlobal || isOwner || myRole === 'SuperAdmin';
+    const canDelete = canDeleteGlobal || isOwner || myRole === 'SuperAdmin';
+
+    const buttonsRow = (canEdit || canDelete) ? `
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+            ${canEdit ? `<button onclick="closeKvDetailModal();openKvModal(${rec.rowId})" style="flex:1; padding:10px; border-radius:10px; background:#FEF3C7; color:#92400E; border:1px solid #FCD34D; font-weight:700; font-size:13px;">✏️ Tahrirlash</button>` : ''}
+            ${canDelete ? `<button onclick="closeKvDetailModal();deleteKv(${rec.rowId})" style="flex:1; padding:10px; border-radius:10px; background:#FEE2E2; color:#991B1B; border:1px solid #FECACA; font-weight:700; font-size:13px;">🗑 O'chirish</button>` : ''}
+        </div>` : '';
+
+    document.getElementById('kvDetailModalBody').innerHTML = `
+        <div class="modal-drag"></div>
+        ${buttonsRow}
+        <div class="detail-header">
+            <span class="detail-badge" style="background:#EFF6FF; color:#1D4ED8;">📐 Buyurtma Tafsiloti</span>
+            <h3 style="margin:10px 0 5px 0; color:var(--navy); font-weight:800;">📌 ${escapeHtml(rec.orderName || '—')}</h3>
+            <div style="font-size:12px; color:var(--text-muted); font-weight:600;">№${escapeHtml(String(rec.no || '—'))} | Sana: ${escapeHtml(rec.date || '—')}</div>
+        </div>
+        
+        <div class="detail-card" style="margin-top:15px;">
+            <div class="detail-row"><span class="detail-key">Mas'ul xodim</span><span class="detail-val">${escapeHtml(rec.staffName || '—')}</span></div>
+            <div class="detail-row"><span class="detail-key">Hozirgi Holat</span><span class="detail-val"><b style="color:var(--green-dark);">${escapeHtml(status.toUpperCase())}</b></span></div>
+            <div class="detail-row"><span class="detail-key">O'lcham</span><span class="detail-val" style="font-size:18px; font-weight:800; color:var(--navy);">${m2Val} m²</span></div>
+        </div>
+
+        <div style="margin-top:20px; background:#F8FAFC; border-radius:16px; padding:15px; border:1px solid #F1F5F9;">
+            <div style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px; letter-spacing:0.5px;">📉 Jarayon Tarixi</div>
+            ${historyHtml || '<p style="font-size:12px; color:var(--text-muted); text-align:center;">Hali harakatlar yo\'q</p>'}
+        </div>
+
+        <div style="margin-top:24px;">
+            ${claimBtnHtml}
+            <button class="btn-secondary" style="width:100%; height:48px; background:#F1F5F9; color:#475569; border:1px solid #E2E8F0; font-weight:700;" onclick="closeKvDetailModal()">✕ Yopish</button>
+        </div>`;
+        
     document.getElementById('kvDetailModal').classList.remove('hidden');
-    if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
 }
 
 function closeKvDetailModal() {
@@ -318,8 +386,8 @@ function applyKvFilters() {
     const year = document.getElementById('kvFilterYear')?.value || 'all';
     const staff = document.getElementById('kvFilterStaff')?.value || 'all';
     const process = document.getElementById('kvFilterProcess')?.value || 'all';
+
     kvFilteredRecords = kvFullRecords.filter(rec => {
-        // Filtrlash: faqat rowId yoki no mavjud bo'lgan haqiqiy yozuvlarni qoldiramiz
         if (!rec || (!rec.rowId && !rec.no)) return false;
 
         if (month !== 'all') {
@@ -331,29 +399,21 @@ function applyKvFilters() {
             if (String(recYear) !== String(year)) return false;
         }
         if (staff !== 'all') {
-            var staffMatch = (rec.staffName === staff);
+            let staffMatch = (rec.staffName === staff);
             if (!staffMatch && Array.isArray(rec.logs)) {
-                var logNames = rec.logs.map(function(log) {
-                    if (!log || !log.uid) return '';
-                    if (String(log.uid) === String(rec.ownerTgId)) return rec.staffName;
-                    var mapped = (typeof window._kvEmpMap !== 'undefined' && window._kvEmpMap[String(log.uid)]) || '';
-                    if (!mapped && typeof globalEmployeeList !== 'undefined' && Array.isArray(globalEmployeeList)) {
-                        const emp = globalEmployeeList.find(e => String(e.tgId) === String(log.uid));
-                        if (emp) mapped = emp.username;
-                    }
-                    return mapped || String(log.uid);
-                });
-                staffMatch = logNames.some(function(name) {
+                staffMatch = rec.logs.some(log => {
+                    const name = (log.uid === rec.ownerTgId) ? rec.staffName : (globalEmployeeList && globalEmployeeList.find(e => String(e.tgId) === String(log.uid))?.username || log.uid);
                     return name === staff;
                 });
             }
             if (!staffMatch) return false;
         }
         if (process !== 'all') {
-            if (!rec.currentStep || String(rec.currentStep) !== String(process)) return false;
+            if (String(rec.currentStep) !== String(process)) return false;
         }
         return true;
     });
+    
     kvCurrentPage = 1;
     renderKvList();
 }
@@ -365,6 +425,7 @@ function openKvModal(rowId = null) {
     form.reset();
     document.getElementById('kvRowId').value = rowId || '';
     _initKvFormYears();
+
     if (rowId) {
         title.innerText = '✏️ Tahrirlash';
         const rec = kvFullRecords.find(r => String(r.rowId) === String(rowId));
@@ -374,17 +435,10 @@ function openKvModal(rowId = null) {
             document.getElementById('kvTotalM2Input').value = rec.totalM2 || '';
             document.getElementById('kvStaffSelect').value = rec.staffName || '';
             const cleanMonth = String(rec.month || '').replace(/^_+/, '').replace(/^'/, '');
-            const monthEl = document.getElementById('kvActionMonth');
-            if (monthEl && cleanMonth) monthEl.value = cleanMonth.padStart(2, '0');
-            const yearEl = document.getElementById('kvActionYear');
-            if (yearEl) {
-                if (rec.year) {
-                    yearEl.value = rec.year;
-                } else if (rec.date) {
-                    const parts = String(rec.date).split('/');
-                    if (parts.length === 3) yearEl.value = parts[2];
-                }
-            }
+            const mEl = document.getElementById('kvActionMonth');
+            if (mEl && cleanMonth) mEl.value = cleanMonth.padStart(2, '0');
+            const yEl = document.getElementById('kvActionYear');
+            if (yEl) yEl.value = rec.year || (rec.date ? rec.date.split('/').pop() : new Date().getFullYear());
         }
     } else {
         const positions = (typeof myPermissions !== 'undefined' && myPermissions.positions) || [];
@@ -393,13 +447,10 @@ function openKvModal(rowId = null) {
             return;
         }
         title.innerText = '📐 Yangi o\'lchov kiritish';
-        if (typeof globalEmployeeList !== 'undefined' && globalEmployeeList.includes(myUsername)) {
-            const sel = document.getElementById('kvStaffSelect');
-            if (sel) sel.value = myUsername;
-        }
+        const sel = document.getElementById('kvStaffSelect');
+        if (sel && myUsername) sel.value = myUsername;
     }
     modal.classList.remove('hidden');
-    if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
 }
 
 function closeKvModal() {
@@ -414,29 +465,39 @@ async function saveKv() {
     const staffName = document.getElementById('kvStaffSelect').value;
     const month = document.getElementById('kvActionMonth')?.value || '';
     const year = document.getElementById('kvActionYear')?.value || new Date().getFullYear();
-    const monthStr = (year && month) ? `_${month}` : '';
+
     if (!orderNumber || !orderName || totalM2 <= 0 || !staffName) {
         showToastMsg('❌ Ma\'lumotlarni to\'liq kiriting', true);
         return;
     }
-    const duplicateOrder = (kvFullRecords || []).some(rec => {
-        if (!rec || !rec.no) return false;
-        if (String(rec.rowId) === String(rowId)) return false;
-        return String(rec.no || '').trim().toLowerCase() === String(orderNumber).trim().toLowerCase();
-    });
-    if (duplicateOrder) {
-        showToastMsg('❌ Bu Buyurtma № oldin qoshilgan. Iltimos, boshqa raqam kiriting.', true);
-        return;
+
+    if (rowId) {
+        const rec = kvFullRecords.find(r => String(r.rowId) === String(rowId));
+        const isAdmin = myRole === 'Admin' || myRole === 'SuperAdmin' || myRole === 'Direktor';
+        const canEditAll = isAdmin && myPermissions.canEdit;
+        const isOwner = rec && String(rec.ownerTgId) === String(telegramId);
+        
+        if (!canEditAll && !isOwner && myRole !== 'SuperAdmin') {
+            showToastMsg('❌ Siz faqat o\'zingiz kiritgan ma\'lumotni tahrirlay olasiz', true);
+            return;
+        }
+
+        const reason = await askActionReason("Tahrirlash sababini kiriting");
+        if (!reason) return;
+        window._kvEditReason = reason;
     }
-    let ownerTgId = telegramId;
-    if (typeof window._kvEmpMap !== 'undefined') {
-        const found = Object.entries(window._kvEmpMap).find(([id, name]) => name === staffName);
-        if (found) ownerTgId = found[0];
-    }
+
     const saveBtn = document.querySelector('#kvForm .btn-main[type="submit"]');
     setButtonLoading(saveBtn, true, 'Saqlanmoqda...');
+
     try {
         const action = rowId ? 'kvadrat_edit' : 'kvadrat_add';
+        let ownerTgId = telegramId;
+        if (typeof window._kvEmpMap !== 'undefined') {
+            const found = Object.entries(window._kvEmpMap).find(([id, name]) => name === staffName);
+            if (found) ownerTgId = found[0];
+        }
+
         const data = await apiRequest({
             action,
             rowId: rowId || undefined,
@@ -445,15 +506,18 @@ async function saveKv() {
             totalM2,
             staffName,
             ownerTgId,
-            month: monthStr,
-            year: year
+            month: `_${month}`,
+            year: year,
+            reason: window._kvEditReason || ''
         });
+        window._kvEditReason = '';
+
         if (data.success) {
             showToastMsg('✅ Saqlandi');
             closeKvModal();
             initKvadratTab();
         } else {
-            showToastMsg('❌ ' + (data.error || 'Saqlashda xato'), true);
+            showToastMsg('❌ ' + (data.error || 'Xato'), true);
         }
     } catch (e) {
         showToastMsg('❌ Tarmoq xatosi', true);
@@ -463,13 +527,27 @@ async function saveKv() {
 }
 
 async function deleteKv(rowId) {
-    if (!confirm("O'chirishga ishonchingiz komilmi?")) return;
+    const rec = kvFullRecords.find(r => String(r.rowId) === String(rowId));
+    if (!rec) return;
+
+    const isAdmin = myRole === 'Admin' || myRole === 'SuperAdmin' || myRole === 'Direktor';
+    const canDeleteAll = isAdmin && myPermissions.canDelete;
+    const isOwner = String(rec.ownerTgId) === String(telegramId);
+
+    if (!canDeleteAll && !isOwner && myRole !== 'SuperAdmin') {
+        showToastMsg('❌ Siz faqat o\'zingiz kiritgan ma\'lumotni o\'chira olasiz', true);
+        return;
+    }
+
+    const isOk = await askConfirmDialog("Buyurtmani o'chirish", "Ushbu buyurtmani butunlay o'chirishga ishonchingiz komilmi?");
+    if (!isOk) return;
+
+    const reason = await askActionReason("O'chirish sababini kiriting");
+    if (!reason) return;
+
     kvShowProc('O\'chirilmoqda...');
     try {
-        const data = await apiRequest({
-            action: 'kvadrat_delete',
-            rowId
-        });
+        const data = await apiRequest({ action: 'kvadrat_delete', rowId, reason });
         if (data.success) {
             kvHideProc(true, 'O\'chirildi');
             initKvadratTab();
@@ -484,10 +562,7 @@ async function deleteKv(rowId) {
 async function claimKvWork(rowId) {
     kvShowProc('Bajarilmoqda...');
     try {
-        const data = await apiRequest({
-            action: 'kvadrat_claim',
-            rowId
-        });
+        const data = await apiRequest({ action: 'kvadrat_claim', rowId });
         if (data.success) {
             kvHideProc(true, 'Bajarildi!');
             initKvadratTab();

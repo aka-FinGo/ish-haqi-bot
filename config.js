@@ -1,7 +1,7 @@
 // ============================================================
 // config.js — Frontend sozlamalari
 // ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbxvwRMY-t-9_0S0A7zl8DXSMpCCj35D_kv8iREYDTs5TAMbKTVEs5ol2mpeLaedomA5Og/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwwCfiCjL6Nvi3uXw6gfLkrXJrV30SS7YKoeQbnzJj0wXieWjTHrcn9vtPBtvonFQa4RA/exec";
 
 const tg = window.Telegram.WebApp;
 tg.expand();
@@ -26,6 +26,7 @@ let myRole = 'User';
 let myUsername = '';   // Sheetdan kelgan Ism
 let myCanAdd = true; // + tugmasi doim ko'rinadi, ruxsat yo'q bo'lsa ogohlantirish
 let myInList = false;// Hodimlar sheetida bormi
+let myIsSardor = false;
 let canViewCompanyActions = false;
 let canExportCompanyData = false;
 let adminContactId = '';

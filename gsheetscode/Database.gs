@@ -16,13 +16,9 @@ var COL = {
   EXPORT:       9,
   VIEW_DASH:    10,
   ROLE:         11,
-  OVR_CAN_ADD:  12,
-  OVR_VIEW_ALL: 13,
-  OVR_EDIT:     14,
-  OVR_DELETE:   15,
-  OVR_EXPORT:   16,
-  OVR_VIEW_DASH:17,
-  LAVOZIM:      18
+  LAVOZIM:      12,
+  GURUH:        13,
+  IS_SARDOR:    14
 };
 
 var DATA_COL = {
@@ -51,8 +47,7 @@ var EMP_HEADERS = [
   "TelegramId","Username","CanAdd",
   "SuperAdmin","Direktor","Admin",
   "canViewAll","canEdit","canDelete","canExport","canViewDash",
-  "Role","OverrideCanAdd","OverrideViewAll","OverrideEdit","OverrideDelete","OverrideExport","OverrideViewDash",
-  "Lavozim"
+  "Role", "Lavozim", "Guruh", "IsSardor"
 ];
 
 var WORKFLOW_HEADERS = [
@@ -120,10 +115,11 @@ function synchronizeEmployeeRowsToV2_(empSheet, hideLegacyColumns) {
     var before = row.slice();
     var tgId = String(row[COL.TG_ID] || '').trim();
     if (!tgId) continue;
-    var current = resolveEmployeeAccessFromRow_(row);
+    
+    // Simple Model: Read from Role and effective columns
     var role = normalizeRole_(row[COL.ROLE], row);
-    var overrides = deriveOverridesForEffective_(role, current.canAdd, current.permissions);
-    var model = buildModelFromRoleAndOverrides_(role, overrides);
+    var model = buildModelFromRoleAndOverrides_(role, null);
+    
     row[COL.CAN_ADD] = model.canAdd ? 1 : 0;
     row[COL.SUPER_ADMIN] = model.isSuperAdmin ? 1 : 0;
     row[COL.DIREKTOR] = model.isDirektor ? 1 : 0;
@@ -134,12 +130,7 @@ function synchronizeEmployeeRowsToV2_(empSheet, hideLegacyColumns) {
     row[COL.EXPORT] = model.permissions.canExport ? 1 : 0;
     row[COL.VIEW_DASH] = model.permissions.canViewDash ? 1 : 0;
     row[COL.ROLE] = model.roleKey;
-    row[COL.OVR_CAN_ADD] = overrideToCellValue_(model.overrides.canAdd);
-    row[COL.OVR_VIEW_ALL] = overrideToCellValue_(model.overrides.canViewAll);
-    row[COL.OVR_EDIT] = overrideToCellValue_(model.overrides.canEdit);
-    row[COL.OVR_DELETE] = overrideToCellValue_(model.overrides.canDelete);
-    row[COL.OVR_EXPORT] = overrideToCellValue_(model.overrides.canExport);
-    row[COL.OVR_VIEW_DASH] = overrideToCellValue_(model.overrides.canViewDash);
+    
     for (var c = 0; c < requiredCols; c++) {
       if (String(before[c]) !== String(row[c])) { changedRows++; break; }
     }
@@ -240,6 +231,7 @@ function initUser(tgId, auth, data) {
     if (String(row[DATA_COL.TG_ID]) === targetId) {
       userRecords.push({
         rowId: i + 1,
+        telegramId: targetId,
         amountUZS: Number(row[DATA_COL.AMOUNT_UZS]) || 0,
         amountUSD: Number(row[DATA_COL.AMOUNT_USD]) || 0,
         rate: Number(row[DATA_COL.RATE]) || 0,
@@ -262,11 +254,27 @@ function initUser(tgId, auth, data) {
     isAdmin: auth.isAdmin,
     isSuperAdmin: auth.isSuperAdmin,
     isDirector: auth.isDirector,
+    isSardor: !!auth.isSardor,
     permissions: auth.permissions,
     positions: auth.positions,
     allPositions: allPositions,
     workflowConfig: workflowConfig,
+    isWorkflowStrict: getWorkflowStrictMode(),
     data: userRecords,
     employeeList: empList
   };
+}
+
+/**
+ * Global Workflow Settings
+ */
+function getWorkflowStrictMode() {
+  var p = PropertiesService.getScriptProperties();
+  return p.getProperty('WORKFLOW_STRICT_MODE') === '1';
+}
+
+function setWorkflowStrictMode(isStrict) {
+  var p = PropertiesService.getScriptProperties();
+  p.setProperty('WORKFLOW_STRICT_MODE', isStrict ? '1' : '0');
+  return { success: true };
 }

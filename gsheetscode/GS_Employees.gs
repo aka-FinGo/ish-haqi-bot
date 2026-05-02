@@ -30,9 +30,28 @@ function getHodimlar() {
       overrideCanDelete:   access.overrides.canDelete,
       overrideCanExport:   access.overrides.canExport,
       overrideCanViewDash: access.overrides.canViewDash,
-      positions:           String(rows[i][COL.LAVOZIM] || '').split(',').map(function(s){return s.trim();}).filter(Boolean)
+      positions:           String(rows[i][COL.LAVOZIM] || '').split(',').map(function(s){return s.trim();}).filter(Boolean),
+      group:               String(rows[i][COL.GURUH]   || '').trim(),
+      isSardor:            String(rows[i][COL.IS_SARDOR]) == "1" || rows[i][COL.IS_SARDOR] === true ? 1 : 0
     });
   }
+  
+  // Add Config Super Admin if not in list
+  var superAdminId = String((CONFIG && CONFIG.SUPER_ADMIN_ID) || '');
+  if (superAdminId && !result.some(function(e){ return e.tgId === superAdminId; })) {
+    result.push({
+      sheetRow:    -1,
+      tgId:        superAdminId,
+      username:    String((CONFIG && CONFIG.SUPER_ADMIN_NAME) || 'SuperAdmin'),
+      role:        'SuperAdmin',
+      isSuperAdmin: 1,
+      isAdmin:     1,
+      positions:   ['Loyihachi', 'Yig\'uvchi', 'Qadoqlovchi'], // All positions for config admin
+      group:       'ADMIN',
+      isSardor:    1
+    });
+  }
+
   return { success: true, data: result };
 }
 
@@ -53,7 +72,9 @@ function getEmployee(tgId) {
         isAdmin:     access.isAdmin,
         permissions: access.permissions,
         overrides:   access.overrides,
-        positions:   String(rows[i][COL.LAVOZIM] || '').split(',').map(function(s){return s.trim();}).filter(Boolean)
+        positions:   String(rows[i][COL.LAVOZIM] || '').split(',').map(function(s){return s.trim();}).filter(Boolean),
+        group:       String(rows[i][COL.GURUH] || '').trim(),
+        isSardor:    String(rows[i][COL.IS_SARDOR]) == "1" || rows[i][COL.IS_SARDOR] === true
       };
     }
   }
@@ -92,6 +113,8 @@ function addHodim(data) {
     newRow[COL.OVR_EXPORT]   = overrideToCellValue_(cfg.overrides.canExport);
     newRow[COL.OVR_VIEW_DASH]= overrideToCellValue_(cfg.overrides.canViewDash);
     newRow[COL.LAVOZIM]      = data.lavozim || '';
+    newRow[COL.GURUH]        = data.guruh || '';
+    newRow[COL.IS_SARDOR]    = data.isSardor ? 1 : 0;
     empSheet.appendRow(newRow);
     resetEmployeeCache_();
     return { success: true };
@@ -128,6 +151,8 @@ function updateHodim(data) {
         updateRow[COL.OVR_EXPORT]   = overrideToCellValue_(cfg.overrides.canExport);
         updateRow[COL.OVR_VIEW_DASH]= overrideToCellValue_(cfg.overrides.canViewDash);
         updateRow[COL.LAVOZIM]      = data.lavozim || '';
+        updateRow[COL.GURUH]        = data.guruh || '';
+        updateRow[COL.IS_SARDOR]    = data.isSardor ? 1 : 0;
         empSheet.getRange(r, 1, 1, EMP_HEADERS.length).setValues([updateRow]);
         resetEmployeeCache_();
         return { success: true };
