@@ -64,13 +64,16 @@ function populateKvadratMeta(staffList) {
     const kvStaffModal = document.getElementById('kvStaffSelect');
     if (staffFilter) {
         staffFilter.innerHTML = '<option value="all">Barcha hodimlar</option>';
-        staffList.forEach(emp => {
-            const name = (typeof emp === 'object') ? (emp.username || emp.firstName || 'Noma\'lum') : emp;
-            const opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = name;
-            staffFilter.appendChild(opt);
-        });
+
+staffList.forEach(emp => {
+    const name = (typeof emp === 'object') ? (emp.username || emp.firstName || 'Noma\'lum') : emp;
+
+    const opt = document.createElement('option');
+    opt.value = (typeof emp === 'object') ? emp.tgId : name;
+    opt.textContent = name;
+
+    staffFilter.appendChild(opt);
+});
     }
     if (kvStaffModal) {
         kvStaffModal.innerHTML = '<option value="">Hodimni tanlang...</option>';
@@ -443,35 +446,15 @@ function applyKvFilters() {
         if (!rec || (!rec.rowId && !rec.no)) return false;
 
         if (staff !== 'all') {
-    let staffMatch = false;
+    const selectedTgId = String(staff);
 
-    // 1. staffName orqali (normalize)
-    if (String(rec.staffName || '').trim().toLowerCase() === String(staff).trim().toLowerCase()) {
-        staffMatch = true;
-    }
-
-    // 2. ownerTgId orqali (ENG MUHIM FIX)
-    if (!staffMatch && globalEmployeeList) {
-        const emp = globalEmployeeList.find(e =>
-            String(e.username || e.firstName).trim().toLowerCase() === String(staff).trim().toLowerCase()
+    const matchByLogs =
+        Array.isArray(rec.logs) &&
+        rec.logs.some(log =>
+            String(log.uid) === selectedTgId
         );
 
-        if (emp && String(emp.tgId) === String(rec.ownerTgId)) {
-            staffMatch = true;
-        }
-    }
-
-    // 3. logs orqali
-    if (!staffMatch && Array.isArray(rec.logs)) {
-        staffMatch = rec.logs.some(log => {
-            const emp = globalEmployeeList?.find(e =>
-                String(e.tgId) === String(log.uid)
-            );
-            return emp && String(emp.username || emp.firstName).trim().toLowerCase() === String(staff).trim().toLowerCase();
-        });
-    }
-
-    if (!staffMatch) return false;
+    if (!matchByLogs) return false;
         }
         if (process !== 'all') {
             if (!rec.currentStep || String(rec.currentStep) !== String(process)) return false;
