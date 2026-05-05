@@ -436,52 +436,62 @@ function closeKvDetailModal() {
     document.getElementById('kvDetailModal').classList.add('hidden');
 }
 
-// kvadratlar.js ichida
 function applyKvFilters() {
   const month = document.getElementById('kvFilterMonth')?.value || 'all';
   const year = document.getElementById('kvFilterYear')?.value || 'all';
   const staff = document.getElementById('kvFilterStaff')?.value || 'all';
   const process = document.getElementById('kvFilterProcess')?.value || 'all';
 
-  // 1. Tanlangan xodimning lavozimini aniqlash (globalEmployeeList dan)
-  let targetPosition = null;
-  if (staff !== 'all' && typeof globalEmployeeList !== 'undefined') {
-    const emp = globalEmployeeList.find(e => String(e.tgId || e.id) === String(staff));
-    if (emp) targetPosition = emp.position || emp.role || null;
-  }
-
   kvFilteredRecords = kvFullRecords.filter(rec => {
     if (!rec) return false;
 
-    // 🎯 MAS'UL XODIM FILTRI (Dinamik ustun orqali)
+    // 🎯 1. MAS'UL XODIM FILTRI (Dinamik ustunlarni qo'llab-quvvatlaydi)
     if (staff !== 'all') {
-      const targetId = String(staff).trim().toLowerCase();
-      let match = false;
+      const targetId = String(staff).trim();
+      let isMatch = false;
 
-      // A) Agar lavozim ma'lum bo'lsa → faqat shu ustundan qidir
-      if (targetPosition) {
-        // Sheets ustun nomi (masalan: "Yig'uvchi", "Loyihachi", "Montajchi")
-        const colKey = targetPosition.charAt(0).toUpperCase() + targetPosition.slice(1);
-        const colValue = rec[colKey] || rec[targetPosition] || null;
-        match = String(colValue).trim().toLowerCase() === targetId;
+      // A) Kirituvchi (Owner)
+      if (String(rec.ownerTgId || '').trim() === targetId) isMatch = true;
+
+      // B) WorkflowLogs (L ustun)
+      if (!isMatch && rec.WorkflowLogs) {
+        try {
+          const logs = typeof rec.WorkflowLogs === 'string' 
+                       ? JSON.parse(rec.WorkflowLogs) 
+                       : rec.WorkflowLogs;
+          if (Array.isArray(logs)) {
+            isMatch = logs.some(l => 
+              String(l.uid || l.id || l.tgId || '').trim() === targetId
+            );
+          }
+        } catch(e) { /* JSON xatosi bo'lsa o'tkazib yuboramiz */ }
       }
 
-      // B) Agar lavozim noma'lum bo'lsa → fallback (logs + ownerTgId)
-      if (!match) {
-        const logsArr = Array.isArray(rec.logs) ? rec.logs : 
-                        (typeof rec.logs === 'string' ? JSON.parse(rec.logs) : []);
-        match = logsArr.some(l => String(l.uid || l.id || l.tgId).toLowerCase() === targetId) ||
-                String(rec.ownerTgId).toLowerCase() === targetId;
+      // C) 🚀 DINAMIK LAVOZIM USTUNLARI (M, N, Q, R, va kelajakdagi barchasi)
+      // Faqat "(Hodim ID)" bilan tugaydigan ustunlarni tekshiradi
+      if (!isMatch) {
+        for (const key in rec) {
+          if (key.includes('Hodim ID')) {
+            if (String(rec[key] || '').trim() === targetId) {
+              isMatch = true;
+              break; // Topildi, tsiklni to'xtatamiz (tezkor!)
+            }
+          }
+        }
       }
 
-      if (!match) return false;
+      if (!isMatch) return false;
     }
 
-    // 🔄 BOSQICH FILTRI
+    // 🔄 2. ISH BOSQICHI FILTRI
     if (process !== 'all') {
-      const step = String(rec.currentStep || rec.step || '0');
-      if (step !== String(process)) return false;
+      const step = String(rec.currentStep || rec.StepIndex || rec.Step || '0').trim();
+      if (step !== String(process).trim()) return false;
     }
+
+    // 📅 3. OY/YIL FILTRI (agar kerak bo'lsa)
+    if (month !== 'all' && rec.MONTH && String(rec.MONTH) !== String(month)) return false;
+    if (year !== 'all' && rec.YEAR && String(rec.YEAR) !== String(year)) return false;
 
     return true;
   });
