@@ -442,31 +442,36 @@ function applyKvFilters() {
     kvFilteredRecords = kvFullRecords.filter(rec => {
         if (!rec || (!rec.rowId && !rec.no)) return false;
 
-        if (month !== 'all') {
-            const cleanMonth = String(rec.month || '').replace(/^_+/, '').replace(/^'/, '');
-            if (cleanMonth !== month) return false;
-        }
-        if (year !== 'all') {
-            if (!String(rec.date || '').endsWith(String(year))) return false;
-        }
         if (staff !== 'all') {
-            let staffMatch = (rec.staffName === staff);
+    let staffMatch = false;
 
-            if (!staffMatch && Array.isArray(rec.logs)) {
-                const logNames = rec.logs.map(function(log) {
-                    if (!log || !log.uid) return '';
-                    if (String(log.uid) === String(rec.ownerTgId)) return rec.staffName;
-                    // window._kvEmpMap orqali tgId -> name
-                    let mapped = (typeof window._kvEmpMap !== 'undefined' && window._kvEmpMap[String(log.uid)]) || '';
-                    if (!mapped && typeof globalEmployeeList !== 'undefined' && Array.isArray(globalEmployeeList)) {
-                        const emp = globalEmployeeList.find(e => String(e.tgId) === String(log.uid));
-                        if (emp) mapped = emp.username || emp.firstName || '';
-                    }
-                    return mapped || String(log.uid);
-                });
-                staffMatch = logNames.some(name => name === staff);
-            }
-            if (!staffMatch) return false;
+    // 1. staffName orqali (normalize)
+    if (String(rec.staffName || '').trim().toLowerCase() === String(staff).trim().toLowerCase()) {
+        staffMatch = true;
+    }
+
+    // 2. ownerTgId orqali (ENG MUHIM FIX)
+    if (!staffMatch && globalEmployeeList) {
+        const emp = globalEmployeeList.find(e =>
+            String(e.username || e.firstName).trim().toLowerCase() === String(staff).trim().toLowerCase()
+        );
+
+        if (emp && String(emp.tgId) === String(rec.ownerTgId)) {
+            staffMatch = true;
+        }
+    }
+
+    // 3. logs orqali
+    if (!staffMatch && Array.isArray(rec.logs)) {
+        staffMatch = rec.logs.some(log => {
+            const emp = globalEmployeeList?.find(e =>
+                String(e.tgId) === String(log.uid)
+            );
+            return emp && String(emp.username || emp.firstName).trim().toLowerCase() === String(staff).trim().toLowerCase();
+        });
+    }
+
+    if (!staffMatch) return false;
         }
         if (process !== 'all') {
             if (!rec.currentStep || String(rec.currentStep) !== String(process)) return false;
