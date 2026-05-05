@@ -437,49 +437,42 @@ function closeKvDetailModal() {
 }
 
 function applyKvFilters() {
- const month = document.getElementById('kvFilterMonth')?.value || 'all';
- const year = document.getElementById('kvFilterYear')?.value || 'all';
- const staff = document.getElementById('kvFilterStaff')?.value || 'all';
- const process = document.getElementById('kvFilterProcess')?.value || 'all';
+  const month = document.getElementById('kvFilterMonth')?.value || 'all';
+  const year = document.getElementById('kvFilterYear')?.value || 'all';
+  const staff = document.getElementById('kvFilterStaff')?.value || 'all';
+  const process = document.getElementById('kvFilterProcess')?.value || 'all';
 
- kvFilteredRecords = kvFullRecords.filter(rec => {
- if (!rec || (!rec.rowId && !rec.no)) return false;
+  kvFilteredRecords = kvFullRecords.filter(rec => {
+    if (!rec) return false;
 
- if (staff !== 'all') {
- const selectedTgId = String(staff);
+    // 🎯 MAS'UL XODIM FILTRI
+    if (staff !== 'all') {
+      const target = String(staff).trim().toLowerCase();
 
- // 1-VARIANT: logs orqali tekshirish
- const matchByLogs = Array.isArray(rec.logs) && 
- rec.logs.some(log => String(log.uid) === selectedTgId);
- 
- // 2-VARIANT: ownerTgId orqali tekshirish (yangi yozuvlar uchun)
- const matchByOwner = String(rec.ownerTgId) === selectedTgId;
- 
- // 3-VARIANT: staffName orqali tekshirish (globalEmployeeList orqali)
- let matchByStaffName = false;
- if (rec.staffName && globalEmployeeList && Array.isArray(globalEmployeeList)) {
- const emp = globalEmployeeList.find(e => {
- const empTgId = String(e.tgId || e.id);
- return empTgId === selectedTgId && e.username === rec.staffName;
- });
- matchByStaffName = !!emp;
- }
+      // 1. logs ichidagi uid/id/tgId
+      const matchLogs = Array.isArray(rec.logs) && 
+        rec.logs.some(l => String(l.uid || l.id || l.tgId).trim().toLowerCase() === target);
 
- // Agar hech biri mos kelmasa - false
- if (!matchByLogs && !matchByOwner && !matchByStaffName) {
- return false;
- }
- }
- 
- if (process !== 'all') {
- if (!rec.currentStep || String(rec.currentStep) !== String(process)) return false;
- }
- 
- return true;
- });
+      // 2. To'g'ridan-to'g'ri owner/responsible maydonlari
+      const matchOwner = String(rec.ownerTgId || rec.ownerId || rec.responsibleId || rec.responsible).trim().toLowerCase() === target;
 
- kvCurrentPage = 1;
- renderKvList();
+      // 3. Ism yoki username maydonlari
+      const matchName = String(rec.staffName || rec.name || rec.worker || rec.username).trim().toLowerCase() === target;
+
+      if (!matchLogs && !matchOwner && !matchName) return false;
+    }
+
+    //  ISH BOSQICHI FILTRI
+    if (process !== 'all') {
+      const stepVal = String(rec.currentStep || rec.step || rec.stage || '').trim();
+      if (stepVal !== String(process).trim()) return false;
+    }
+
+    return true;
+  });
+
+  kvCurrentPage = 1;
+  renderKvList();
 }
 
 function openKvModal(rowId = null) {
