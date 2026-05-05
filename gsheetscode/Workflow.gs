@@ -93,32 +93,36 @@ function processWorkflowStep(rowId, auth, actorTgId, targetStepIndex) {
     }
 
     // Permission Check: Does user have the required technical position?
-    var userPositions = auth.positions || [];
-    if (!auth.isSuperAdmin && (!userPositions.indexOf || userPositions.indexOf(stepToProcess.position) === -1)) {
-      return { success: false, error: 'Sizda "' + stepToProcess.position + '" lavozimi yo\'q' };
-    }
+    var userPositions = (auth.positions || []).map(function(p) { return normalizePos_(p); });
+    var stepPos = normalizePos_(stepToProcess.position);
 
-    // Group Leader Check (for steps > 1)
-    if (stepToProcess.index > 1 && !auth.isSuperAdmin) {
-       if (!auth.isSardor) {
-         return { success: false, error: 'Faqat "Guruh Sardori" ushbu bosqichni tasdiqlay oladi' };
-       }
+    if (userPositions.indexOf(stepPos) === -1) {
+      return { success: false, error: 'Sizda "' + stepToProcess.position + '" lavozimi yo\'q' };
     }
 
     // Update logistics
     logs.push({
       step: stepToProcess.index,
       uid:  String(actorTgId),
+      u:    auth.username || 'Noma\'lum',
       d:    new Date().toISOString(),
       group: auth.group || ''
     });
 
-    // Update the main status only if this step is "next" or "higher" than current, 
-    // or if we want the status to reflect the "latest" activity.
-    // For now, let's update status if it's a step > currentStepIdx
-    if (stepToProcess.index > currentStepIdx) {
-      sh.getRange(row, KV_COL.STEP_INDEX + 1).setValue(stepToProcess.index);
-      sh.getRange(row, KV_COL.STATUS     + 1).setValue(stepToProcess.status);
+    // Sort logs by step index to maintain logical sequence regardless of completion order
+    logs.sort(function(a, b) {
+      return (Number(a.step) || 0) - (Number(b.step) || 0);
+    });
+
+    // Update the main status only if this step is the highest completed step so far
+    var maxStepDone = logs.reduce(function(max, l) { return Math.max(max, Number(l.step) || 0); }, 0);
+    
+    if (maxStepDone >= currentStepIdx) {
+      var latestStepCfg = config.find(function(s) { return s.index === maxStepDone; });
+      if (latestStepCfg) {
+        sh.getRange(row, KV_COL.STEP_INDEX + 1).setValue(latestStepCfg.index);
+        sh.getRange(row, KV_COL.STATUS     + 1).setValue(latestStepCfg.status);
+      }
     }
     
     sh.getRange(row, KV_COL.STEP_LOGS  + 1).setValue(JSON.stringify(logs));
@@ -151,4 +155,9 @@ function processWorkflowStep(rowId, auth, actorTgId, targetStepIndex) {
 
     return { success: true };
   });
+}
+
+function normalizePos_(pos) {
+  if (!pos) return '';
+  return String(pos).toLowerCase().trim();
 }

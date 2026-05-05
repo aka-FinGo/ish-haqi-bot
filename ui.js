@@ -91,42 +91,75 @@ let _appInitRetries = 0;
 const MAX_INIT_RETRIES = 3;
 
 function loadCachedData() {
-    try {
-        const cachedData = localStorage.getItem('myFullRecords');
-        if (cachedData) {
-            const parsed = JSON.parse(cachedData);
-            if (Array.isArray(parsed)) {
-                myFullRecords = parsed;
-                myFilteredRecords = [...myFullRecords];
-                console.log('✅ Cache dan yuklandi:', myFullRecords.length, 'ta amal');
-                return true;
-            }
-        }
-    } catch (e) {
-        console.error('❌ Cache parsing xatosi:', e);
-        try { localStorage.removeItem('myFullRecords'); } catch (e2) { }
+    const cached = AppCache.get(AppCache.KEYS.MY_RECORDS, 120);
+    if (cached && Array.isArray(cached)) {
+        myFullRecords = cached;
+        myFilteredRecords = [...myFullRecords];
+        console.log('✅ Records cached:', myFullRecords.length);
     }
-    return false;
+    const cachedUser = AppCache.get(AppCache.KEYS.USER_DATA, 120);
+    if (cachedUser) {
+        processUserData(cachedUser);
+        console.log('✅ User meta cached');
+        return true;
+    }
+    return !!cached;
 }
 
-function saveCacheData(data) {
-    try {
-        localStorage.setItem('myFullRecords', JSON.stringify(data));
-        console.log('✅ Cache saqlandi');
-    } catch (e) {
-        if (e.name === 'QuotaExceededError') console.warn('⚠️ localStorage quota to\'lgan');
-        else console.error('❌ Cache save xatosi:', e);
+function saveCacheData(records, userData) {
+    if (records) AppCache.set(AppCache.KEYS.MY_RECORDS, records);
+    if (userData) AppCache.set(AppCache.KEYS.USER_DATA, userData);
+}
+
+function processUserData(data) {
+    if (!data) return;
+    myInList = data.inList || false;
+    myCanAdd = data.canAdd !== false;
+    myUsername = data.username || '';
+    adminContactId = String(data.adminContactId || '').trim();
+    const displayName = data.username || (user ? user.first_name : 'Xodim');
+    document.getElementById('greeting').innerText = `Salom, ${displayName}!`;
+    
+    if (data.isSuperAdmin) myRole = 'SuperAdmin';
+    else if (data.isAdmin) myRole = 'Admin';
+    else if (data.isDirector || data.isDirektor) myRole = 'Direktor';
+    else myRole = 'User';
+    
+    myIsSardor = !!data.isSardor;
+    const asBool = (v) => v === true || v === 1 || String(v || '') === '1' || String(v || '').toLowerCase() === 'true';
+    
+    if (myRole === 'SuperAdmin') {
+        myPermissions = {
+            canViewAll: true, canEdit: true, canDelete: true, canExport: true, canViewDash: true,
+            positions: data.positions || [], workflowConfig: data.workflowConfig || [], allPositions: data.allPositions || [],
+            isWorkflowStrict: !!data.isWorkflowStrict
+        };
+    } else {
+        const p = data.permissions || {};
+        myPermissions = {
+            canViewAll: asBool(p.canViewAll), canEdit: asBool(p.canEdit), canDelete: asBool(p.canDelete),
+            canExport: asBool(p.canExport), canViewDash: asBool(p.canViewDash),
+            positions: data.positions || [], workflowConfig: data.workflowConfig || [], allPositions: data.allPositions || [],
+            isWorkflowStrict: !!data.isWorkflowStrict
+        };
     }
+    if (typeof updateTechnicalPositions === 'function') updateTechnicalPositions(data.allPositions || []);
+    canViewCompanyActions = myRole === 'SuperAdmin' || myPermissions.canViewAll;
+    canExportCompanyData = myRole === 'SuperAdmin' || (myPermissions.canViewAll && myPermissions.canExport);
+    if (typeof populateKvadratMeta === 'function') populateKvadratMeta(globalEmployeeList);
 }
 
 async function initializeApp() {
     try {
         const firstName = user ? user.first_name : 'Xodim';
         document.getElementById('greeting').innerText = `Salom, ${firstName}!`;
-        const cacheLoaded = loadCachedData();
-        if (cacheLoaded && myFullRecords.length > 0) {
+        
+        loadCachedData();
+        if (myFullRecords.length > 0) {
             if (typeof initMyFilters === 'function') initMyFilters();
+            if (typeof renderMyRecords === 'function') renderMyRecords();
         }
+
         console.log('🔄 Server dan ma\'lumot yuklanyapti...');
         const data = await apiRequest({
             action: 'init',
@@ -137,42 +170,15 @@ async function initializeApp() {
 
         if (data && data.success) {
             myFullRecords = data.data || [];
-            saveCacheData(myFullRecords);
             myFilteredRecords = [...myFullRecords];
-            myInList = data.inList || false;
-            myCanAdd = data.canAdd !== false;
-            myUsername = data.username || '';
-            adminContactId = String(data.adminContactId || '').trim();
+            
             const _empRaw = data.employeeList || {};
             window._kvEmpMap = _empRaw;
             globalEmployeeList = Array.isArray(_empRaw) ? _empRaw : Object.values(_empRaw).filter(Boolean);
-            const displayName = myUsername || firstName;
-            document.getElementById('greeting').innerText = `Salom, ${displayName}!`;
-            if (data.isSuperAdmin) myRole = 'SuperAdmin';
-            else if (data.isAdmin) myRole = 'Admin';
-            else if (data.isDirector || data.isDirektor) myRole = 'Direktor';
-            else myRole = 'User';
-            myIsSardor = !!data.isSardor;
-            const asBool = (v) => v === true || v === 1 || String(v || '') === '1' || String(v || '').toLowerCase() === 'true';
-            if (myRole === 'SuperAdmin') {
-                myPermissions = {
-                    canViewAll: true, canEdit: true, canDelete: true, canExport: true, canViewDash: true,
-                    positions: data.positions || [], workflowConfig: data.workflowConfig || [], allPositions: data.allPositions || [],
-                    isWorkflowStrict: !!data.isWorkflowStrict
-                };
-            } else {
-                const p = data.permissions || {};
-                myPermissions = {
-                    canViewAll: asBool(p.canViewAll), canEdit: asBool(p.canEdit), canDelete: asBool(p.canDelete),
-                    canExport: asBool(p.canExport), canViewDash: asBool(p.canViewDash),
-                    positions: data.positions || [], workflowConfig: data.workflowConfig || [], allPositions: data.allPositions || [],
-                    isWorkflowStrict: !!data.isWorkflowStrict
-                };
-            }
-            if (typeof updateTechnicalPositions === 'function') updateTechnicalPositions(data.allPositions || []);
-            canViewCompanyActions = myRole === 'SuperAdmin' || myPermissions.canViewAll;
-            canExportCompanyData = myRole === 'SuperAdmin' || (myPermissions.canViewAll && myPermissions.canExport);
-            if (typeof populateKvadratMeta === 'function') populateKvadratMeta(globalEmployeeList);
+
+            processUserData(data);
+            saveCacheData(myFullRecords, data);
+            
             if (myRole === 'SuperAdmin' || myRole === 'Admin') {
                 const navAdmin = document.getElementById('nav-admin');
                 if (navAdmin) navAdmin.classList.remove('hidden');
