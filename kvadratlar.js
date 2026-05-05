@@ -436,36 +436,51 @@ function closeKvDetailModal() {
     document.getElementById('kvDetailModal').classList.add('hidden');
 }
 
+// kvadratlar.js ichida
 function applyKvFilters() {
   const month = document.getElementById('kvFilterMonth')?.value || 'all';
   const year = document.getElementById('kvFilterYear')?.value || 'all';
   const staff = document.getElementById('kvFilterStaff')?.value || 'all';
   const process = document.getElementById('kvFilterProcess')?.value || 'all';
 
+  // 1. Tanlangan xodimning lavozimini aniqlash (globalEmployeeList dan)
+  let targetPosition = null;
+  if (staff !== 'all' && typeof globalEmployeeList !== 'undefined') {
+    const emp = globalEmployeeList.find(e => String(e.tgId || e.id) === String(staff));
+    if (emp) targetPosition = emp.position || emp.role || null;
+  }
+
   kvFilteredRecords = kvFullRecords.filter(rec => {
     if (!rec) return false;
 
-    // 🎯 MAS'UL XODIM FILTRI
+    // 🎯 MAS'UL XODIM FILTRI (Dinamik ustun orqali)
     if (staff !== 'all') {
-      const target = String(staff).trim().toLowerCase();
+      const targetId = String(staff).trim().toLowerCase();
+      let match = false;
 
-      // 1. logs ichidagi uid/id/tgId
-      const matchLogs = Array.isArray(rec.logs) && 
-        rec.logs.some(l => String(l.uid || l.id || l.tgId).trim().toLowerCase() === target);
+      // A) Agar lavozim ma'lum bo'lsa → faqat shu ustundan qidir
+      if (targetPosition) {
+        // Sheets ustun nomi (masalan: "Yig'uvchi", "Loyihachi", "Montajchi")
+        const colKey = targetPosition.charAt(0).toUpperCase() + targetPosition.slice(1);
+        const colValue = rec[colKey] || rec[targetPosition] || null;
+        match = String(colValue).trim().toLowerCase() === targetId;
+      }
 
-      // 2. To'g'ridan-to'g'ri owner/responsible maydonlari
-      const matchOwner = String(rec.ownerTgId || rec.ownerId || rec.responsibleId || rec.responsible).trim().toLowerCase() === target;
+      // B) Agar lavozim noma'lum bo'lsa → fallback (logs + ownerTgId)
+      if (!match) {
+        const logsArr = Array.isArray(rec.logs) ? rec.logs : 
+                        (typeof rec.logs === 'string' ? JSON.parse(rec.logs) : []);
+        match = logsArr.some(l => String(l.uid || l.id || l.tgId).toLowerCase() === targetId) ||
+                String(rec.ownerTgId).toLowerCase() === targetId;
+      }
 
-      // 3. Ism yoki username maydonlari
-      const matchName = String(rec.staffName || rec.name || rec.worker || rec.username).trim().toLowerCase() === target;
-
-      if (!matchLogs && !matchOwner && !matchName) return false;
+      if (!match) return false;
     }
 
-    //  ISH BOSQICHI FILTRI
+    // 🔄 BOSQICH FILTRI
     if (process !== 'all') {
-      const stepVal = String(rec.currentStep || rec.step || rec.stage || '').trim();
-      if (stepVal !== String(process).trim()) return false;
+      const step = String(rec.currentStep || rec.step || '0');
+      if (step !== String(process)) return false;
     }
 
     return true;
