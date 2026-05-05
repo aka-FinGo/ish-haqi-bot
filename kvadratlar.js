@@ -437,33 +437,49 @@ function closeKvDetailModal() {
 }
 
 function applyKvFilters() {
-    const month = document.getElementById('kvFilterMonth')?.value || 'all';
-    const year = document.getElementById('kvFilterYear')?.value || 'all';
-    const staff = document.getElementById('kvFilterStaff')?.value || 'all';
-    const process = document.getElementById('kvFilterProcess')?.value || 'all';
+ const month = document.getElementById('kvFilterMonth')?.value || 'all';
+ const year = document.getElementById('kvFilterYear')?.value || 'all';
+ const staff = document.getElementById('kvFilterStaff')?.value || 'all';
+ const process = document.getElementById('kvFilterProcess')?.value || 'all';
 
-    kvFilteredRecords = kvFullRecords.filter(rec => {
-        if (!rec || (!rec.rowId && !rec.no)) return false;
+ kvFilteredRecords = kvFullRecords.filter(rec => {
+ if (!rec || (!rec.rowId && !rec.no)) return false;
 
-        if (staff !== 'all') {
-    const selectedTgId = String(staff);
+ if (staff !== 'all') {
+ const selectedTgId = String(staff);
 
-    const matchByLogs =
-        Array.isArray(rec.logs) &&
-        rec.logs.some(log =>
-            String(log.uid) === selectedTgId
-        );
+ // 1-VARIANT: logs orqali tekshirish
+ const matchByLogs = Array.isArray(rec.logs) && 
+ rec.logs.some(log => String(log.uid) === selectedTgId);
+ 
+ // 2-VARIANT: ownerTgId orqali tekshirish (yangi yozuvlar uchun)
+ const matchByOwner = String(rec.ownerTgId) === selectedTgId;
+ 
+ // 3-VARIANT: staffName orqali tekshirish (globalEmployeeList orqali)
+ let matchByStaffName = false;
+ if (rec.staffName && globalEmployeeList && Array.isArray(globalEmployeeList)) {
+ const emp = globalEmployeeList.find(e => {
+ const empTgId = String(e.tgId || e.id);
+ return empTgId === selectedTgId && e.username === rec.staffName;
+ });
+ matchByStaffName = !!emp;
+ }
 
-    if (!matchByLogs) return false;
-        }
-        if (process !== 'all') {
-            if (!rec.currentStep || String(rec.currentStep) !== String(process)) return false;
-        }
-        return true;
-    });
+ // Agar hech biri mos kelmasa - false
+ if (!matchByLogs && !matchByOwner && !matchByStaffName) {
+ return false;
+ }
+ }
+ 
+ if (process !== 'all') {
+ if (!rec.currentStep || String(rec.currentStep) !== String(process)) return false;
+ }
+ 
+ return true;
+ });
 
-    kvCurrentPage = 1;
-    renderKvList();
+ kvCurrentPage = 1;
+ renderKvList();
 }
 
 function openKvModal(rowId = null) {
