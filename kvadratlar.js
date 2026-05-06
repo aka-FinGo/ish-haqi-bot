@@ -447,25 +447,33 @@ function applyKvFilters() {
             if (cleanMonth !== month) return false;
         }
         if (year !== 'all') {
-            const recYear = rec.year || (rec.date ? rec.date.split('/').pop() : '');
-            if (String(recYear) !== String(year)) return false;
+            if (!String(rec.date || '').endsWith(String(year))) return false;
         }
         if (staff !== 'all') {
             let staffMatch = (rec.staffName === staff);
+
             if (!staffMatch && Array.isArray(rec.logs)) {
-                staffMatch = rec.logs.some(log => {
-                    const name = (log.uid === rec.ownerTgId) ? rec.staffName : (globalEmployeeList && globalEmployeeList.find(e => String(e.tgId) === String(log.uid))?.username || log.uid);
-                    return name === staff;
+                const logNames = rec.logs.map(function(log) {
+                    if (!log || !log.uid) return '';
+                    if (String(log.uid) === String(rec.ownerTgId)) return rec.staffName;
+                    // window._kvEmpMap orqali tgId -> name
+                    let mapped = (typeof window._kvEmpMap !== 'undefined' && window._kvEmpMap[String(log.uid)]) || '';
+                    if (!mapped && typeof globalEmployeeList !== 'undefined' && Array.isArray(globalEmployeeList)) {
+                        const emp = globalEmployeeList.find(e => String(e.tgId) === String(log.uid));
+                        if (emp) mapped = emp.username || emp.firstName || '';
+                    }
+                    return mapped || String(log.uid);
                 });
+                staffMatch = logNames.some(name => name === staff);
             }
             if (!staffMatch) return false;
         }
         if (process !== 'all') {
-            if (String(rec.currentStep) !== String(process)) return false;
+            if (!rec.currentStep || String(rec.currentStep) !== String(process)) return false;
         }
         return true;
     });
-    
+
     kvCurrentPage = 1;
     renderKvList();
 }
