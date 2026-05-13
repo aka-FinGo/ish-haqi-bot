@@ -226,6 +226,19 @@
                 <div class="premium-hero-bg-icon">👤</div>
             </div>
 
+            <!-- Joriy oy statistikasi -->
+            <div class="card" style="padding:15px; margin-bottom:20px; display:grid; grid-template-columns:1fr 1fr; gap:15px; background:var(--bg); border:1px solid var(--border);">
+                <div style="text-align:center; border-right:1px solid var(--border);">
+                    <div style="font-size:10px; color:var(--text-muted); font-weight:800; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Joriy oy (So'm)</div>
+                    <div id="profileCurrentMonthUzs" style="font-size:18px; font-weight:800; color:var(--green-dark);">0</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:10px; color:var(--text-muted); font-weight:800; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Joriy oy (m²)</div>
+                    <div id="profileCurrentMonthM2" style="font-size:18px; font-weight:800; color:var(--blue);">0</div>
+                </div>
+            </div>
+
+
             <div id="profileAdminSection" class="hidden">
                 <div class="section-title">Boshqaruv</div>
                 <button class="btn-main bg-navy" onclick="switchTab('adminTab','nav-profile')" style="margin-bottom:20px;">
@@ -251,16 +264,16 @@
             <div class="card">
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--border);">
                     <span style="font-weight:600;">🔔 Bildirishnomalar</span>
-                    <label class="premium-switch" style="position:relative; display:inline-block; width:46px; height:24px;">
-                        <input type="checkbox" checked disabled style="opacity:0; width:0; height:0;">
-                        <span class="premium-slider" style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:var(--border); transition:.4s; border-radius:24px;"></span>
+                    <label class="premium-switch">
+                        <input type="checkbox" checked id="toggleNotifications" onchange="toggleSetting('notifications', this.checked)">
+                        <span class="premium-slider"></span>
                     </label>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0;">
                     <span style="font-weight:600;">📶 Offline Rejim</span>
-                    <label class="premium-switch" style="position:relative; display:inline-block; width:46px; height:24px;">
-                        <input type="checkbox" checked disabled style="opacity:0; width:0; height:0;">
-                        <span class="premium-slider" style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:var(--border); transition:.4s; border-radius:24px;"></span>
+                    <label class="premium-switch">
+                        <input type="checkbox" checked id="toggleOfflineMode" onchange="toggleSetting('offline', this.checked)">
+                        <span class="premium-slider"></span>
                     </label>
                 </div>
             </div>
@@ -539,6 +552,10 @@
 
         <!-- TAB 7: KV DASHBOARD -->
         <div id="kvDashboardTab" class="tab-content">
+            <div id="kvPtr" class="ptr-container">
+                <div class="ptr-arrow">↓</div>
+                <div class="ptr-icon hidden"></div>
+            </div>
             <div class="page-header">
                 <div><h2>📊 Dashboard kv</h2></div>
                 <div style="display:flex; gap:12px; align-items:center;">
@@ -699,6 +716,7 @@
         <script defer src="detail_modal.js?v=1.0.23"></script>
         <script defer src="kvadratlar.js?v=1.0.23"></script>
         <script defer src="dashboard_kv.js?v=1.0.23"></script>
+        <script defer src="dashboard_charts.js?v=1.0.0"></script>
         <script defer src="roles.js?v=1.0.23"></script>
         <script defer src="admin_workflow.js?v=1.0.23"></script>
         <script defer src="admin_positions.js?v=1.0.23"></script>

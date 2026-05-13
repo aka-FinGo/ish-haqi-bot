@@ -63,8 +63,8 @@ function showCustomConfirm(title, message, confirmText, cancelText, requireReaso
                 <p class="js-confirm-msg">${message}</p>
                 ${reasonBlock}
                 <div class="js-confirm-actions">
-                    <button class="js-btn-cancel" id="customConfirmCancel">${cancelText}</button>
-                    <button class="js-btn-confirm-del" id="customConfirmOk">${confirmText}</button>
+                    <button class="js-btn-confirm-ok" id="customConfirmOk">${confirmText}</button>
+                    <button class="js-btn-confirm-del" id="customConfirmCancel">${cancelText}</button>
                 </div>
             </div>
         </div>
@@ -172,19 +172,129 @@ function applyRoleBasedUI() {
     updateContactAdminButton();
 }
 
+let _appLoadingToast = null;
+function showAppLoading(msg = 'Yuklanmoqda...') {
+    if (_appLoadingToast) _appLoadingToast.remove();
+    const html = `<div id="appLoadingToast" class="app-loading-bar">
+        <div class="spinner"></div>
+        <span>${msg}</span>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    _appLoadingToast = document.getElementById('appLoadingToast');
+    requestAnimationFrame(() => {
+        if (_appLoadingToast) _appLoadingToast.classList.add('show');
+    });
+}
+function hideAppLoading() {
+    if (_appLoadingToast) {
+        _appLoadingToast.classList.remove('show');
+        setTimeout(() => {
+            if (_appLoadingToast) {
+                _appLoadingToast.remove();
+                _appLoadingToast = null;
+            }
+        }, 300);
+    }
+}
+
+/**
+ * Pull to Refresh funksiyasini initsializatsiya qilish
+ */
+function initPullToRefresh(containerId, ptrId, refreshCallback) {
+    const container = document.getElementById(containerId);
+    const ptr = document.getElementById(ptrId);
+    if (!container || !ptr) return;
+
+    const arrow = ptr.querySelector('.ptr-arrow');
+    const icon = ptr.querySelector('.ptr-icon');
+
+    let startY = 0;
+    let isPulling = false;
+    const threshold = 70;
+
+    container.addEventListener('touchstart', (e) => {
+        if (container.scrollTop <= 5) {
+            startY = e.touches[0].pageY;
+        } else {
+            startY = 0;
+        }
+    }, { passive: true });
+
+    container.addEventListener('touchmove', (e) => {
+        if (startY === 0) return;
+        const y = e.touches[0].pageY;
+        const diff = y - startY;
+
+        if (diff > 10 && container.scrollTop <= 5) {
+            isPulling = true;
+            ptr.classList.add('active');
+            
+            if (diff > threshold) {
+                ptr.classList.add('pulling');
+            } else {
+                ptr.classList.remove('pulling');
+            }
+            
+            ptr.style.height = Math.min(diff * 0.5, 80) + 'px';
+            ptr.style.opacity = Math.min(diff / threshold, 1);
+        }
+    }, { passive: false });
+
+    container.addEventListener('touchend', async () => {
+        if (!isPulling) return;
+        isPulling = false;
+        
+        const currentHeight = parseInt(ptr.style.height || 0);
+        ptr.style.height = ''; 
+        ptr.style.opacity = '';
+
+        if (currentHeight >= 35) {
+            arrow.classList.add('hidden');
+            icon.classList.remove('hidden');
+            ptr.classList.add('active');
+            
+            try {
+                if (window.tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+                await refreshCallback();
+            } catch (err) {
+                console.error('Refresh error:', err);
+                if (window.tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+            } finally {
+                setTimeout(() => {
+                    ptr.classList.remove('active', 'pulling');
+                    setTimeout(() => {
+                        arrow.classList.remove('hidden');
+                        icon.classList.add('hidden');
+                    }, 300);
+                }, 500);
+            }
+        } else {
+            ptr.classList.remove('active', 'pulling');
+        }
+        startY = 0;
+    });
+}
+
 async function initializeApp() {
     try {
+        if (typeof tg !== 'undefined') {
+            tg.ready();
+            tg.expand();
+        }
         const firstName = user ? user.first_name : 'Xodim';
         document.getElementById('greeting').innerText = `Salom, ${firstName}!`;
 
+        showAppLoading('Kesh yuklanmoqda...');
         loadCachedData();
         if (myFullRecords.length > 0) {
             if (typeof initMyFilters === 'function') initMyFilters();
             if (typeof renderMyRecords === 'function') renderMyRecords();
             if (typeof initKvadratTab === 'function') initKvadratTab();
+            showAppLoading('Keshdan yuklandi, server bilan yangilanmoqda...');
+        } else {
+            showAppLoading('Server bilan bog\'lanmoqda...');
         }
 
-        console.log('🔄 Server dan ma\'lumot yuklanyapti...');
         const data = await apiRequest({
             action: 'init',
             firstName: user ? (user.first_name || '') : '',
@@ -209,8 +319,10 @@ async function initializeApp() {
             _appInitialized = true; _appInitRetries = 0;
             if (typeof updateModuleIframe === 'function') updateModuleIframe();
             startBackgroundSync();
+            hideAppLoading();
         } else { throw new Error(data?.error || 'Init xatosi'); }
     } catch (error) {
+        hideAppLoading();
         console.error('❌ Init xatosi:', error);
         if (_appInitRetries < MAX_INIT_RETRIES) {
             _appInitRetries++;
@@ -365,10 +477,77 @@ function updateProfileUI() {
     const adminSection = document.getElementById('profileAdminSection');
     if (adminSection) {
         const hasAdminAccess = (myRole === 'SuperAdmin' || myRole === 'Admin' || myRole === 'Direktor');
-        console.log('👑 Admin panel tugmasi:', hasAdminAccess ? 'KO\'RINADI' : 'YASHIRILDI');
         adminSection.classList.toggle('hidden', !hasAdminAccess);
     }
+
+    // --- Joriy oy statistikasi ---
+    try {
+        const now = new Date();
+        const curYear = now.getFullYear();
+        const curMonth = now.getMonth() + 1;
+        const curPeriod = `${curYear}-${String(curMonth).padStart(2, '0')}`;
+
+        // 1. Ish haqi (So'mda)
+        let monthlyUzs = 0;
+        if (typeof myFullRecords !== 'undefined' && Array.isArray(myFullRecords)) {
+            monthlyUzs = myFullRecords.reduce((sum, r) => {
+                if (r.actionPeriod === curPeriod) return sum + (Number(r.amountUZS) || 0);
+                return sum;
+            }, 0);
+        }
+        const uzsEl = document.getElementById('profileCurrentMonthUzs');
+        if (uzsEl) uzsEl.textContent = monthlyUzs.toLocaleString();
+
+        // 2. Kvadratlar (m²)
+        let monthlyM2 = 0;
+        if (typeof kvFullRecords !== 'undefined' && Array.isArray(kvFullRecords)) {
+            const myName = myUsername || (typeof employeeName !== 'undefined' ? employeeName : '');
+            monthlyM2 = kvFullRecords.reduce((sum, r) => {
+                const rYear = Number(r.year);
+                const rMonth = Number(String(r.month || '').replace('_', '').replace("'", ""));
+                const rStaff = r.staffName || '';
+                if (rYear === curYear && rMonth === curMonth && rStaff === myName) {
+                    return sum + (Number(r.totalM2) || 0);
+                }
+                return sum;
+            }, 0);
+        }
+        const m2El = document.getElementById('profileCurrentMonthM2');
+        if (m2El) m2El.textContent = monthlyM2.toLocaleString('uz-UZ', { maximumFractionDigits: 1 });
+
+        // Toggles holatini yuklash
+        const notifOn = localStorage.getItem('app_notifications') !== 'false'; // default true
+        const offlineOn = localStorage.getItem('app_offline_mode') === 'true'; // default false
+        
+        const notifToggle = document.getElementById('toggleNotifications');
+        const offlineToggle = document.getElementById('toggleOfflineMode');
+        
+        if (notifToggle) notifToggle.checked = notifOn;
+        if (offlineToggle) offlineToggle.checked = offlineOn;
+
+    } catch (err) {
+        console.warn('Profile stats calculation error:', err);
+    }
 }
+
+function toggleSetting(type, isEnabled) {
+    console.log(`⚙️ Sozlama o'zgardi: ${type} = ${isEnabled}`);
+    
+    // Haptic feedback
+    if (window.tg && tg.HapticFeedback) {
+        tg.HapticFeedback.impactOccurred('light');
+    }
+
+    if (type === 'notifications') {
+        localStorage.setItem('app_notifications', isEnabled);
+        showToastMsg(isEnabled ? '✅ Bildirishnomalar yoqildi' : '🔔 Bildirishnomalar o\'chirildi');
+    } else if (type === 'offline') {
+        localStorage.setItem('app_offline_mode', isEnabled);
+        showToastMsg(isEnabled ? '📶 Offline rejim faollashdi' : '🌐 Onlayn rejimga o\'tildi');
+    }
+}
+
+
 
 function handleFabAction() {
     const activeTab = document.querySelector('.tab-content.active');
@@ -566,9 +745,8 @@ function showConfirmModal(message, onConfirm) {
                     Ushbu amalni davom ettirmoqchimisiz?
                 </p>
                 <div class="js-confirm-actions">
-                    <button id="modalNo"  class="js-btn-cancel">Yo'q</button>
-                    <button id="modalYes" class="js-btn-confirm-ok"
-                        style="background:var(--navy);">Ha, saqlash</button>
+                    <button id="modalYes" class="js-btn-confirm-ok">Ha, saqlash</button>
+                    <button id="modalNo"  class="js-btn-confirm-del">Yo'q</button>
                 </div>
             </div>
         </div>
