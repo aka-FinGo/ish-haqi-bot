@@ -1,7 +1,7 @@
 // ============================================================
 // config.js — Frontend sozlamalari
 // ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbxvwRMY-t-9_0S0A7zl8DXSMpCCj35D_kv8iREYDTs5TAMbKTVEs5ol2mpeLaedomA5Og/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwwCfiCjL6Nvi3uXw6gfLkrXJrV30SS7YKoeQbnzJj0wXieWjTHrcn9vtPBtvonFQa4RA/exec";
 
 const tg = window.Telegram.WebApp;
 tg.expand();
@@ -171,6 +171,9 @@ async function apiRequest(payload, opts) {
   try {
     console.log('📤 API so\'rov yuborilmoqda:', body.action || 'unknown');
     
+    const syncEl = document.getElementById('syncIndicator');
+    if (syncEl) syncEl.classList.remove('hidden');
+    
     const res = await fetch(API_URL, {
       method: 'POST',
       // IMPORTANT:
@@ -215,6 +218,8 @@ async function apiRequest(payload, opts) {
     throw err;
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
+    const syncEl = document.getElementById('syncIndicator');
+    if (syncEl) syncEl.classList.add('hidden');
   }
 }
 
