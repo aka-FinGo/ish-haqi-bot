@@ -59,10 +59,49 @@ async function kvRefreshAll(btn) {
 function populateKvadratMeta(staffList) {
     const staffFilter = document.getElementById('kvFilterStaff');
     const kvStaffModal = document.getElementById('kvStaffSelect');
+
+    // Faqat buyurtmalarda qatnashgan xodimlarni yig'ish
+    let involvedEmployees = new Set();
+
+    // Agar kvFullRecords mavjud bo'lsa, undagi barcha jarayonlarda qatnashgan xodimlarni qo'shamiz
+    if (typeof kvFullRecords !== 'undefined' && Array.isArray(kvFullRecords)) {
+        kvFullRecords.forEach(rec => {
+            // Buyurtma egasi
+            if (rec.staffName) {
+                involvedEmployees.add(rec.staffName);
+            }
+            // Logs dagi barcha xodimlar
+            if (Array.isArray(rec.logs)) {
+                rec.logs.forEach(log => {
+                    if (!log || !log.uid) return;
+                    // Agar log uid ownerTgId bilan bir xil bo'lsa, staffName ni olamiz
+                    if (String(log.uid) === String(rec.ownerTgId)) {
+                        if (rec.staffName) involvedEmployees.add(rec.staffName);
+                        return;
+                    }
+                    // Aks holda globalEmployeeList dan izlaymiz
+                    if (typeof globalEmployeeList !== 'undefined' && Array.isArray(globalEmployeeList)) {
+                        const emp = globalEmployeeList.find(e => String(e.tgId) === String(log.uid));
+                        if (emp) {
+                            const name = emp.username || emp.firstName || '';
+                            if (name) involvedEmployees.add(name);
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    // Yangi buyurtma qo'shish uchun hozirgi foydalanuvchini ham qo'shamiz
+    if (typeof myUsername !== 'undefined' && myUsername) {
+        involvedEmployees.add(myUsername);
+    }
+    
+    const involvedEmployeesArray = Array.from(involvedEmployees).sort();
+    
     if (staffFilter) {
         staffFilter.innerHTML = '<option value="all">Barcha hodimlar</option>';
-        staffList.forEach(emp => {
-            const name = (typeof emp === 'object') ? (emp.username || emp.firstName || 'Noma\'lum') : emp;
+        involvedEmployeesArray.forEach(name => {
             const opt = document.createElement('option');
             opt.value = name; opt.textContent = name;
             staffFilter.appendChild(opt);
@@ -70,8 +109,7 @@ function populateKvadratMeta(staffList) {
     }
     if (kvStaffModal) {
         kvStaffModal.innerHTML = '<option value="">Hodimni tanlang...</option>';
-        staffList.forEach(emp => {
-            const name = (typeof emp === 'object') ? (emp.username || emp.firstName || 'Noma\'lum') : emp;
+        involvedEmployeesArray.forEach(name => {
             const opt = document.createElement('option');
             opt.value = name; opt.textContent = name;
             kvStaffModal.appendChild(opt);
@@ -131,6 +169,7 @@ async function initKvadratTab() {
         if (cached) {
             kvFullRecords = cached;
             if (typeof kvDashboardRecords !== 'undefined') kvDashboardRecords = kvFullRecords;
+            populateKvadratMeta(typeof globalEmployeeList !== 'undefined' ? globalEmployeeList : []);
             applyKvFilters();
         }
     } catch (e) { console.warn('Cache read error:', e); }
@@ -152,6 +191,7 @@ async function initKvadratTab() {
             kvFullRecords = data.data || [];
             if (typeof kvDashboardRecords !== 'undefined') kvDashboardRecords = kvFullRecords;
             AppCache.set(AppCache.KEYS.KV_RECORDS, kvFullRecords);
+            populateKvadratMeta(typeof globalEmployeeList !== 'undefined' ? globalEmployeeList : []);
             applyKvFilters();
         } else {
             if (!kvFullRecords || kvFullRecords.length === 0) {
@@ -189,7 +229,9 @@ function renderKvList() {
     const totalDisplay = document.getElementById('kvTotalM2');
     if (!container) return;
 
+    const summaryEl = document.getElementById('kvFilterSummary');
     if (!kvFilteredRecords || !kvFilteredRecords.length) {
+        if (summaryEl) summaryEl.innerText = '0 ta buyurtma';
         container.innerHTML = `
             <div class="empty-state" style="background:var(--surface); border:2px dashed var(--border); border-radius:24px; padding:60px 20px;">
                 <div class="empty-icon" style="font-size:48px; margin-bottom:16px;">📏</div>
@@ -203,6 +245,9 @@ function renderKvList() {
     try {
         const totalM2ForFiltered = kvFilteredRecords.reduce((sum, rec) => sum + (Number(rec.totalM2) || 0), 0);
         if (totalDisplay) totalDisplay.innerText = totalM2ForFiltered.toLocaleString('uz-UZ', { maximumFractionDigits: 1 });
+        if (summaryEl) {
+            summaryEl.innerText = `${kvFilteredRecords.length} ta buyurtma • jami ${totalM2ForFiltered.toLocaleString('uz-UZ', { maximumFractionDigits: 1 })} m²`;
+        }
 
         let lastDavr = null;
         const sortedKvData = [...kvFilteredRecords].sort((a, b) => {
@@ -461,11 +506,165 @@ function closeKvDetailModal() {
     document.getElementById('kvDetailModal').classList.add('hidden');
 }
 
+function normalizeKvSearch(value) {
+    return String(value || '').toLowerCase().trim();
+}
+
+function applySearchToRecord(rec, query) {
+    if (!query) return true;
+    const needle = normalizeKvSearch(query);
+    const fields = [rec.no, rec.orderName, rec.staffName, rec.status, rec.currentStep, rec.date, rec.month];
+    let haystack = fields.map(normalizeKvSearch).join(' ');
+
+    if (Array.isArray(rec.logs)) {
+        const logNames = rec.logs.map(log => {
+            if (!log || !log.uid) return '';
+            if (String(log.uid) === String(rec.ownerTgId)) return rec.staffName || '';
+            if (typeof window._kvEmpMap !== 'undefined' && window._kvEmpMap[String(log.uid)]) {
+                return window._kvEmpMap[String(log.uid)];
+            }
+            if (typeof globalEmployeeList !== 'undefined' && Array.isArray(globalEmployeeList)) {
+                const emp = globalEmployeeList.find(e => String(e.tgId) === String(log.uid));
+                if (emp) return emp.username || emp.firstName || '';
+            }
+            return String(log.uid || '');
+        }).join(' ');
+        haystack += ' ' + normalizeKvSearch(logNames);
+    }
+    return haystack.includes(needle);
+}
+
+function updateStaffFilterByProcess(selectedProcess) {
+    const staffFilter = document.getElementById('kvFilterStaff');
+    if (!staffFilter) return;
+
+    // Agar "Barcha jarayonlar" tanlangan bo'lsa, barcha xodimlarni ko'rsatish
+    if (selectedProcess === 'all') {
+        const allEmployees = new Set();
+        if (typeof kvFullRecords !== 'undefined' && Array.isArray(kvFullRecords)) {
+            kvFullRecords.forEach(rec => {
+                if (rec.staffName) allEmployees.add(rec.staffName);
+                if (Array.isArray(rec.logs)) {
+                    rec.logs.forEach(log => {
+                        if (!log || !log.uid) return;
+                        if (String(log.uid) === String(rec.ownerTgId)) {
+                            if (rec.staffName) allEmployees.add(rec.staffName);
+                            return;
+                        }
+                        if (typeof globalEmployeeList !== 'undefined' && Array.isArray(globalEmployeeList)) {
+                            const emp = globalEmployeeList.find(e => String(e.tgId) === String(log.uid));
+                            if (emp) {
+                                const name = emp.username || emp.firstName || '';
+                                if (name) allEmployees.add(name);
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
+        const employeesArray = Array.from(allEmployees).sort();
+        const currentValue = staffFilter.value;
+        staffFilter.innerHTML = '<option value="all">Barcha xodimlar</option>';
+        employeesArray.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            staffFilter.appendChild(opt);
+        });
+        if (currentValue !== 'all' && employeesArray.includes(currentValue)) {
+            staffFilter.value = currentValue;
+        } else {
+            staffFilter.value = 'all';
+        }
+        return;
+    }
+
+    // Faqat tanlangan jarayonda qatnashgan xodimlarni yig'ish
+    let involvedEmployees = new Set();
+
+    if (typeof kvFullRecords !== 'undefined' && Array.isArray(kvFullRecords)) {
+        kvFullRecords.forEach(rec => {
+            const currentStep = rec.currentStep || rec.stepIndex || rec.step || rec.current_step;
+            // Faqat tanlangan jarayondagi buyurtmalarni tekshirish
+            if (!currentStep || String(currentStep) !== String(selectedProcess)) return;
+
+            // Buyurtma egasi
+            if (rec.staffName) {
+                involvedEmployees.add(rec.staffName);
+            }
+            // Logs dagi barcha xodimlar
+            if (Array.isArray(rec.logs)) {
+                rec.logs.forEach(log => {
+                    if (!log || !log.uid) return;
+                    // Agar log uid ownerTgId bilan bir xil bo'lsa, staffName ni olamiz
+                    if (String(log.uid) === String(rec.ownerTgId)) {
+                        if (rec.staffName) involvedEmployees.add(rec.staffName);
+                        return;
+                    }
+                    // Aks holda globalEmployeeList dan izlaymiz
+                    if (typeof globalEmployeeList !== 'undefined' && Array.isArray(globalEmployeeList)) {
+                        const emp = globalEmployeeList.find(e => String(e.tgId) === String(log.uid));
+                        if (emp) {
+                            const name = emp.username || emp.firstName || '';
+                            if (name) involvedEmployees.add(name);
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    const involvedEmployeesArray = Array.from(involvedEmployees).sort();
+    const currentValue = staffFilter.value;
+
+    staffFilter.innerHTML = '<option value="all">Barcha xodimlar</option>';
+    involvedEmployeesArray.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        staffFilter.appendChild(opt);
+    });
+
+    // Agar oldingi tanlov hali ro'yxatda bo'lsa, uni saqlab qolish
+    if (currentValue !== 'all' && involvedEmployeesArray.includes(currentValue)) {
+        staffFilter.value = currentValue;
+    } else {
+        staffFilter.value = 'all';
+    }
+}
+
+function toggleKvFilterPanel() {
+    // support both new `.kv-filter-card` and legacy `.premium-filter-card`
+    const filterCard = document.querySelector('.kv-filter-card') || document.querySelector('.premium-filter-card');
+    const toggleBtn = document.getElementById('kvFilterToggleBtn');
+    if (!filterCard || !toggleBtn) return;
+    filterCard.classList.toggle('collapsed');
+    const isCollapsed = filterCard.classList.contains('collapsed');
+    toggleBtn.textContent = isCollapsed ? 'Filtrlarni ko‘rsatish' : 'Filtrlarni yashirish';
+}
+
+function resetKvFilters() {
+    const resetSelects = ['kvFilterMonth', 'kvFilterYear', 'kvFilterStaff', 'kvFilterProcess'];
+    resetSelects.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = 'all';
+    });
+    const searchInput = document.getElementById('kvFilterSearch');
+    if (searchInput) searchInput.value = '';
+    applyKvFilters();
+}
+
 function applyKvFilters() {
     const month = document.getElementById('kvFilterMonth')?.value || 'all';
     const year = document.getElementById('kvFilterYear')?.value || 'all';
     const staff = document.getElementById('kvFilterStaff')?.value || 'all';
     const process = document.getElementById('kvFilterProcess')?.value || 'all';
+    const searchQuery = document.getElementById('kvFilterSearch')?.value || '';
+
+    if (process !== 'all') {
+        updateStaffFilterByProcess(process);
+    }
 
     kvFilteredRecords = kvFullRecords.filter(rec => {
         if (!rec || (!rec.rowId && !rec.no)) return false;
@@ -493,8 +692,12 @@ function applyKvFilters() {
             }
             if (!staffMatch) return false;
         }
+        if (searchQuery && !applySearchToRecord(rec, searchQuery)) {
+            return false;
+        }
         if (process !== 'all') {
-            if (!rec.currentStep || String(rec.currentStep) !== String(process)) return false;
+            const currentStep = rec.currentStep || rec.stepIndex || rec.step || rec.current_step;
+            if (!currentStep || String(currentStep) !== String(process)) return false;
         }
         return true;
     });
@@ -518,7 +721,30 @@ function openKvModal(rowId = null) {
             document.getElementById('kvOrderNumber').value = rec.no || '';
             document.getElementById('kvOrderName').value = rec.orderName || '';
             document.getElementById('kvTotalM2Input').value = rec.totalM2 || '';
-            document.getElementById('kvStaffSelect').value = rec.staffName || '';
+            
+            // Faqat ushbu buyurtmada qatnashgan xodimlarni ko'rsatish
+            const involvedEmployees = new Set();
+            // Owner qo'shamiz
+            if (rec.staffName) involvedEmployees.add(rec.staffName);
+            // Logs dagi barcha xodimlarni qo'shamiz
+            const logs = rec.logs || [];
+            logs.forEach(log => {
+                if (log.u) involvedEmployees.add(log.u);
+            });
+            
+            // Selectni yangilaymiz
+            const sel = document.getElementById('kvStaffSelect');
+            if (sel) {
+                sel.innerHTML = '<option value="">Xodimni tanlang...</option>';
+                involvedEmployees.forEach(name => {
+                    const opt = document.createElement('option');
+                    opt.value = name;
+                    opt.textContent = name;
+                    sel.appendChild(opt);
+                });
+                sel.value = rec.staffName || '';
+            }
+            
             const cleanMonth = String(rec.month || '').replace(/^_+/, '').replace(/^'/, '');
             const mEl = document.getElementById('kvActionMonth');
             if (mEl && cleanMonth) mEl.value = cleanMonth.padStart(2, '0');
@@ -539,6 +765,7 @@ function openKvModal(rowId = null) {
 
 function closeKvModal() {
     document.getElementById('kvadratModal').classList.add('hidden');
+    // Selectni qayta tiklash - keyingi ochilishda populateKvadratMeta orqali to'ldiriladi
 }
 
 async function saveKv() {
@@ -645,10 +872,102 @@ async function claimKvWork(rowId, targetStepIndex = null) {
         if (data.success) {
             kvHideProc(true, 'Bajarildi!');
             initKvadratTab();
+            try { createUndoToast(rowId, 15 * 60); } catch (e) { /* ignore */ }
         } else {
             kvHideProc(false, data.error || 'Xato');
         }
     } catch (e) {
         kvHideProc(false, 'Tarmoq xatosi');
     }
+}
+
+async function revertKv(rowId, targetStepIndex = null) {
+    const isOk = await askConfirmDialog("Bekor qilish", "Oxirgi bosqichni bekor qilmoqchimisiz?");
+    if (!isOk) return;
+    const reason = await askActionReason("Bekor qilish sababini kiriting (ixtiyoriy)");
+    kvShowProc('Bekor qilinmoqda...');
+    try {
+        const data = await apiRequest({ action: 'kvadrat_revert', rowId, targetStepIndex, reason });
+        if (data.success) {
+            kvHideProc(true, 'Bekor qilindi');
+            clearUndoToast(rowId);
+            initKvadratTab();
+        } else {
+            kvHideProc(false, data.error || 'Xato');
+        }
+    } catch (e) {
+        kvHideProc(false, 'Tarmoq xatosi');
+    }
+}
+
+async function revertKvQuick(rowId) {
+    kvShowProc('Bekor qilinmoqda...');
+    try {
+        const data = await apiRequest({ action: 'kvadrat_revert', rowId, reason: 'undo_quick' });
+        if (data.success) {
+            kvHideProc(true, 'Bekor qilindi');
+            clearUndoToast(rowId);
+            initKvadratTab();
+        } else {
+            kvHideProc(false, data.error || 'Xato');
+        }
+    } catch (e) {
+        kvHideProc(false, 'Tarmoq xatosi');
+    }
+}
+
+function createUndoToast(rowId, ttlSeconds) {
+    if (!window._kvUndoMap) window._kvUndoMap = {};
+    clearUndoToast(rowId);
+    const id = 'kv-undo-' + rowId;
+    const wrap = document.createElement('div');
+    wrap.id = id;
+    wrap.className = 'kv-undo-toast';
+    wrap.style.cssText = 'position:fixed; right:16px; bottom:16px; background:#0f766e; color:white; padding:12px 16px; border-radius:12px; box-shadow:0 8px 24px rgba(2,6,23,0.5); display:flex; gap:12px; align-items:center; z-index:9999;';
+    const label = document.createElement('div');
+    label.style.minWidth = '180px';
+    label.innerText = 'Undo uchun: ';
+    const timer = document.createElement('span');
+    timer.style.fontWeight = '800';
+    timer.innerText = formatTime(ttlSeconds);
+    label.appendChild(timer);
+    const btn = document.createElement('button');
+    btn.innerText = '↩️ Bekor qilish';
+    btn.style.cssText = 'background:white; color:#065F46; border:none; padding:8px 10px; border-radius:8px; font-weight:700; cursor:pointer;';
+    btn.onclick = function() { revertKvQuick(rowId); };
+    const close = document.createElement('button');
+    close.innerText = '✕';
+    close.style.cssText = 'background:transparent; color:white; border:none; margin-left:8px; font-size:14px; cursor:pointer;';
+    close.onclick = function() { clearUndoToast(rowId); };
+    wrap.appendChild(label);
+    wrap.appendChild(btn);
+    wrap.appendChild(close);
+    document.body.appendChild(wrap);
+
+    var remaining = ttlSeconds;
+    var iv = setInterval(function() {
+        remaining -= 1;
+        if (remaining <= 0) {
+            clearUndoToast(rowId);
+            return;
+        }
+        timer.innerText = formatTime(remaining);
+    }, 1000);
+    window._kvUndoMap[rowId] = { iv: iv, el: wrap };
+}
+
+function clearUndoToast(rowId) {
+    if (!window._kvUndoMap) return;
+    var entry = window._kvUndoMap[rowId];
+    if (entry) {
+        try { clearInterval(entry.iv); } catch(e) {}
+        try { entry.el.remove(); } catch(e) {}
+        delete window._kvUndoMap[rowId];
+    }
+}
+
+function formatTime(seconds) {
+    var m = Math.floor(seconds / 60);
+    var s = seconds % 60;
+    return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
 }
