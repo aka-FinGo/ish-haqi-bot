@@ -100,7 +100,7 @@ function populateKvadratMeta(staffList) {
     const involvedEmployeesArray = Array.from(involvedEmployees).sort();
     
     if (staffFilter) {
-        staffFilter.innerHTML = '<option value="all">Barcha hodimlar</option>';
+        staffFilter.innerHTML = '<option value="all">👤 Barcha xodimlar</option>';
         involvedEmployeesArray.forEach(name => {
             const opt = document.createElement('option');
             opt.value = name; opt.textContent = name;
@@ -118,7 +118,7 @@ function populateKvadratMeta(staffList) {
     const yearSel = document.getElementById('kvFilterYear');
     if (yearSel) {
         const currentYear = new Date().getFullYear();
-        yearSel.innerHTML = '<option value="all">Yillar</option>';
+        yearSel.innerHTML = '<option value="all">📅 Yillar</option>';
         for (let y = currentYear; y >= 2024; y--) {
             const opt = document.createElement('option');
             opt.value = y; opt.textContent = y;
@@ -128,7 +128,7 @@ function populateKvadratMeta(staffList) {
     const processSelect = document.getElementById('kvFilterProcess');
     if (processSelect) {
         const workflowConfig = (typeof myPermissions !== 'undefined' && Array.isArray(myPermissions.workflowConfig)) ? myPermissions.workflowConfig : [];
-        processSelect.innerHTML = '<option value="all">Barcha jarayonlar</option>';
+        processSelect.innerHTML = '<option value="all">⚙️ Barcha jarayonlar</option>';
         workflowConfig.forEach((step, idx) => {
             const opt = document.createElement('option');
             opt.value = String(step.index || idx + 1);
@@ -230,8 +230,10 @@ function renderKvList() {
     if (!container) return;
 
     const summaryEl = document.getElementById('kvFilterSummary');
+    const totalOrdersEl = document.getElementById('kvTotalOrders');
     if (!kvFilteredRecords || !kvFilteredRecords.length) {
         if (summaryEl) summaryEl.innerText = '0 ta buyurtma';
+        if (totalOrdersEl) totalOrdersEl.innerText = '0 ta buyurtma';
         container.innerHTML = `
             <div class="empty-state" style="background:var(--surface); border:2px dashed var(--border); border-radius:24px; padding:60px 20px;">
                 <div class="empty-icon" style="font-size:48px; margin-bottom:16px;">📏</div>
@@ -247,6 +249,9 @@ function renderKvList() {
         if (totalDisplay) totalDisplay.innerText = totalM2ForFiltered.toLocaleString('uz-UZ', { maximumFractionDigits: 1 });
         if (summaryEl) {
             summaryEl.innerText = `${kvFilteredRecords.length} ta buyurtma • jami ${totalM2ForFiltered.toLocaleString('uz-UZ', { maximumFractionDigits: 1 })} m²`;
+        }
+        if (totalOrdersEl) {
+            totalOrdersEl.innerText = `${kvFilteredRecords.length} ta buyurtma`;
         }
 
         let lastDavr = null;
@@ -873,6 +878,101 @@ async function claimKvWork(rowId, targetStepIndex = null) {
             kvHideProc(true, 'Bajarildi!');
             initKvadratTab();
             try { createUndoToast(rowId, 15 * 60); } catch (e) { /* ignore */ }
+        } else {
+            kvHideProc(false, data.error || 'Xato');
+        }
+    } catch (e) {
+        kvHideProc(false, 'Tarmoq xatosi');
+    }
+}
+
+// =============================================================================
+// FORCE REASSIGN STEP (SuperAdmin only) — kim qadoqlagan o'zgartirishga ruxsat
+// =============================================================================
+
+async function openForceReassignModal(rowId) {
+    const rec = kvFullRecords.find(r => String(r.rowId) === String(rowId));
+    if (!rec) {
+        showToastMsg('❌ Buyurtma topilmadi', true);
+        return;
+    }
+    
+    if (myRole !== 'SuperAdmin') {
+        showToastMsg('❌ Faqat SuperAdmin qayta tayinlay oladi', true);
+        return;
+    }
+    
+    // Create a simple modal dialog for reassignment
+    const dialog = document.createElement('div');
+    dialog.className = 'modal-overlay';
+    dialog.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <h3 style="margin-bottom: 20px;">Bosqichni Qayta Tayinlash</h3>
+            <div style="margin-bottom: 15px;">
+                <strong>Buyurtma:</strong> ${escapeHtml(rec.no || '')} - ${escapeHtml(rec.orderName || '')}
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label>Bosqich tanlang:</label>
+                <select id="reassignStep" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px;">
+                    <option value="">Bosqichni tanlang...</option>
+                </select>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label>Hodim ismi:</label>
+                <input id="reassignName" type="text" placeholder="Yangi hodim ismi" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px;">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label>Hodim Telegram ID:</label>
+                <input id="reassignUid" type="text" placeholder="UID yoki Telegram ID" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px;">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label>Sababi (ixtiyoriy):</label>
+                <textarea id="reassignReason" placeholder="Sababi..." style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; min-height:60px;"></textarea>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" class="btn-secondary" onclick="this.closest('.modal-overlay').remove();">Bekor</button>
+                <button type="button" class="btn-main" onclick="performForceReassign('${escapeHtml(String(rowId))}');">Qayta Tayinla</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(dialog);
+    
+    // Populate step options
+    const stepSel = dialog.querySelector('#reassignStep');
+    const cfg = typeof myPermissions !== 'undefined' && Array.isArray(myPermissions.workflowConfig) ? myPermissions.workflowConfig : [];
+    cfg.forEach((step) => {
+        const opt = document.createElement('option');
+        opt.value = step.index || '';
+        opt.textContent = escapeHtml(step.status || step.action || `Bosqich ${step.index || ''}`);
+        stepSel.appendChild(opt);
+    });
+}
+
+async function performForceReassign(rowId) {
+    const stepIdx = document.querySelector('#reassignStep')?.value;
+    const newName = document.querySelector('#reassignName')?.value?.trim();
+    const newUid = document.querySelector('#reassignUid')?.value?.trim();
+    const reason = document.querySelector('#reassignReason')?.value?.trim();
+    
+    if (!stepIdx || !newName || !newUid) {
+        showToastMsg('❌ Bosqich, ism va Telegram ID ni to\'liq kiriting', true);
+        return;
+    }
+    
+    kvShowProc('Qayta tayinlanmoqda...');
+    try {
+        const data = await apiRequest({
+            action: 'force_reassign_step',
+            rowId,
+            targetStepIndex: stepIdx,
+            newName,
+            newUid,
+            reason
+        });
+        if (data.success) {
+            kvHideProc(true, 'Qayta tayinlandi!');
+            document.querySelector('.modal-overlay')?.remove();
+            initKvadratTab();
         } else {
             kvHideProc(false, data.error || 'Xato');
         }
