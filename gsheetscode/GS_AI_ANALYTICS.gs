@@ -53,6 +53,15 @@ function buildAnalyticsContext(scope, auth, tgId) {
       ctx.myStats = buildMyStats_(tgId, kvData, financeData);
     }
 
+    // ── 9. RAW JSON MA'LUMOTLAR (Q&A uchun) ─────────────────
+    if (scope === 'company') {
+      ctx.rawFinance = financeData.map(function(r) { return { sana: r.date, ism: r.name, uzs: r.amountUZS, usd: r.amountUSD, izoh: r.comment }; });
+      ctx.rawKv = kvData.map(function(r) { return { no: r.no, nom: r.orderName, xodim: r.staffName, m2: r.totalM2, status: r.status, sana: r.date }; });
+    } else {
+      ctx.rawFinance = financeData.filter(function(r) { return String(r.telegramId) === String(tgId); }).map(function(r) { return { sana: r.date, uzs: r.amountUZS, izoh: r.comment }; });
+      ctx.rawKv = kvData.filter(function(r) { return String(r.ownerTgId) === String(tgId); }).map(function(r) { return { no: r.no, nom: r.orderName, m2: r.totalM2, status: r.status }; });
+    }
+
   } catch (e) {
     Logger.log('[buildAnalyticsContext] Xato: ' + e.message);
     ctx.error = e.message;
@@ -518,7 +527,51 @@ function buildAnalyticsSystemPrompt(scope, auth, tgId) {
     p += '- Jami xarajat: ' + _fmt(my.finance_uzs) + ' UZS\n\n';
   }
 
-  p += 'Endi foydalanuvchi savoliga aniq, dalilga asoslangan javob ber.';
+  // ── KESHDAN JSON MA'LUMOTLAR O'QISH (ScriptProperties) ──
+  try {
+    var cachedKv = getAiCachedKv();
+    var cachedFin = getAiCachedFin();
+    var cacheTs = getAiCacheTimestamp();
+    
+    if (cachedKv.length > 0) {
+      // Kalitlarni tiklash: n=raqam, o=buyurtma nomi, x=xodim, m=m2, s=status, d=sana
+      p += '📦 BUYURTMALAR JADVALI (' + cachedKv.length + ' ta):\n';
+      p += 'Format: {n:raqam, o:buyurtma_nomi, x:xodim, m:m2, s:status, d:sana, oy:oy, y:yil, st:step}\n';
+      p += '```json\n' + JSON.stringify(cachedKv) + '\n```\n\n';
+    }
+    
+    if (cachedFin.length > 0) {
+      // Kalitlarni tiklash: d=sana, i=ism, u=UZS, $=USD, c=izoh
+      p += '📥 MOLIYAVIY YOZUVLAR (' + cachedFin.length + ' ta):\n';
+      p += 'Format: {d:sana, i:ism, u:UZS, $:USD, c:izoh}\n';
+      p += '```json\n' + JSON.stringify(cachedFin) + '\n```\n\n';
+    }
+    
+    if (cacheTs > 0) {
+      p += '🕐 Kesh yangilangan: ' + new Date(cacheTs).toLocaleString('uz-UZ') + '\n\n';
+    }
+    
+    if (cachedKv.length === 0 && cachedFin.length === 0) {
+      p += '⚠️ AI kesh bo\'sh. Admin paneldan biror ma\'lumot qo\'shing yoki yangilang — kesh avtomatik quriladi.\n\n';
+    }
+  } catch(cacheReadErr) {
+    Logger.log('[buildAnalyticsSystemPrompt] Kesh o\'qish xato: ' + cacheReadErr.message);
+    // Fallback: ctx dagi raw ma'lumotlarni ishlatish
+    if (ctx.rawKv && ctx.rawKv.length > 0) {
+      p += '📦 BUYURTMALAR (fallback):\n```json\n' + JSON.stringify(ctx.rawKv.slice(-200)) + '\n```\n\n';
+    }
+    if (ctx.rawFinance && ctx.rawFinance.length > 0) {
+      p += '📥 MOLIYAVIY YOZUVLAR (fallback):\n```json\n' + JSON.stringify(ctx.rawFinance.slice(-200)) + '\n```\n\n';
+    }
+  }
+
+  p += 'MUHIM QOIDALAR:\n';
+  p += '- Foydalanuvchi aniq buyurtma raqami so\'rasa (masalan №211), yuqoridagi JSON dan "n" maydoni bo\'yicha izla va TO\'LIQ ma\'lumot ber\n';
+  p += '- Aniq hodim haqida so\'ralsa, JSON dagi "x" (xodim) yoki "i" (ism) maydoni bo\'yicha filtrla\n';
+  p += '- Aniq oy/sana so\'ralsa, "d","oy","y" maydonlari bo\'yicha filtrla\n';
+  p += '- Agar so\'ralgan ma\'lumot JSON da yo\'q bo\'lsa, "topilmadi" dema — kesh bo\'sh bo\'lishi mumkin, admin paneldan keshni yangilashni tavsiya qil\n';
+  p += '- Har doim dalilga asoslangan, aniq va batafsil javob ber\n';
+  
   return p;
 }
 
