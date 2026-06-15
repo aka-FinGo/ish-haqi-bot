@@ -135,6 +135,7 @@ function processUserData(data) {
     if (data.isSuperAdmin) myRole = 'SuperAdmin';
     else if (data.isAdmin) myRole = 'Admin';
     else if (data.isDirector || data.isDirektor) myRole = 'Direktor';
+    else if (data.roleKey === 'BUGALTER' || data.role === 'Bugalter') myRole = 'Bugalter';
     else myRole = 'User';
 
     myIsSardor = !!data.isSardor;
@@ -485,7 +486,7 @@ function updateProfileUI() {
 
     const adminSection = document.getElementById('profileAdminSection');
     if (adminSection) {
-        const hasAdminAccess = (myRole === 'SuperAdmin' || myRole === 'Admin' || myRole === 'Direktor');
+        const hasAdminAccess = (myRole === 'SuperAdmin' || myRole === 'Admin' || myRole === 'Direktor' || myRole === 'Bugalter');
         adminSection.classList.toggle('hidden', !hasAdminAccess);
     }
 
@@ -536,6 +537,35 @@ function updateProfileUI() {
 
     } catch (err) {
         console.warn('Profile stats calculation error:', err);
+    }
+}
+
+// --- Avans So'rash ---
+async function requestAvans() {
+    const amountInput = document.getElementById('avansAmount');
+    if (!amountInput) return;
+    
+    const amount = Number(amountInput.value);
+    if (!amount || amount <= 0) {
+        showToastMsg("Iltimos, to'g'ri summa kiriting!", true);
+        return;
+    }
+
+    const btn = document.getElementById('btnAvansRequest');
+    setButtonLoading(btn, true, "Yuborilmoqda...");
+
+    try {
+        const response = await apiRequest({ action: 'request_avans', amount: amount });
+        if (response.success) {
+            showToastMsg("✅ Avans so'rovi yuborildi!");
+            amountInput.value = '';
+        } else {
+            showToastMsg("❌ " + (response.error || "Xatolik yuz berdi"), true);
+        }
+    } catch (e) {
+        showToastMsg("❌ Internet ulanishini tekshiring!", true);
+    } finally {
+        setButtonLoading(btn, false);
     }
 }
 
